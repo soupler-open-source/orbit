@@ -154,6 +154,16 @@ main() {
   echo -e "${B}━━━ Orbit Setup ━━━━━━━━━━━━━━━━━━━━━━━━${N}"
   echo ""
 
+  # ── Restore tracked .orbit state files from git ──────────────────────────────
+  # If .orbit was deleted, STATE.md / EVENT-LOG.jsonl / DECISIONS-LOG.md are
+  # gone from disk but still in git. Restore them before bootstrap runs.
+  if git -C "$FRAMEWORK_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    if git -C "$FRAMEWORK_DIR" checkout -- .orbit/ 2>/dev/null; then
+      echo -e "  ${G}✓${N} .orbit state files restored from git"
+    fi
+  fi
+  echo ""
+
   # Determine tools to install
   local tools_str
   if [[ -n "$explicit_tools" ]]; then
