@@ -233,6 +233,17 @@ main() {
     echo "     Run manually: npm run bootstrap"
   fi
 
+  # ── Replay EVENT-LOG.jsonl → patch STATE.md dynamic sections ────────────────
+  # Brings STATE.md in sync with the event log (currentFocus, blockers, recently completed).
+  # Skipped silently if EVENT-LOG.jsonl doesn't exist yet.
+  echo -e "${B}Replaying event log → STATE.md...${N}"
+  if ORBIT_ROOT_DIR="$PWD" node "$FRAMEWORK_DIR/bin/bootstrap.js" --replay 2>&1; then
+    echo -e "  ${G}✓ STATE.md patched from EVENT-LOG.jsonl${N}"
+  else
+    echo -e "  ${Y}⚠  replay failed — STATE.md may be stale${N}"
+    echo "     Run manually: node bin/bootstrap.js --replay"
+  fi
+
   echo ""
   echo -e "${B}Ensuring git lifecycle hooks...${N}"
   ensure_repo_hooks
