@@ -54,25 +54,27 @@ function log(symbol, label, value, source) {
 // ── Source readers ─────────────────────────────────────────────────────────────
 
 function readPackageJson() {
-  const p = path.join(ROOT, 'package.json');
-  if (!fs.existsSync(p)) return null;
   try {
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   } catch {
     return null;
   }
 }
 
 function readChangelog() {
-  const p = path.join(ROOT, 'CHANGELOG.md');
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, 'utf8');
+  try {
+    return fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 function readReadme() {
-  const p = path.join(ROOT, 'README.md');
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, 'utf8');
+  try {
+    return fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 function extractVision(readme) {
@@ -236,8 +238,23 @@ function main() {
 
   // 6. STATE.md / DECISIONS-LOG.md — migrate decisions + active phase if exists
   let migratedDecisions = 0;
-  if (fs.existsSync(STATE_PATH) || fs.existsSync(DECISIONS_LOG_PATH)) {
-    const text = fs.existsSync(STATE_PATH) ? fs.readFileSync(STATE_PATH, 'utf8') : '';
+  const stateText = (() => {
+    try {
+      return fs.readFileSync(STATE_PATH, 'utf8');
+    } catch {
+      return null;
+    }
+  })();
+  const decisionsLogExists = (() => {
+    try {
+      fs.statSync(DECISIONS_LOG_PATH);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  if (stateText !== null || decisionsLogExists) {
+    const text = stateText ?? '';
 
     const decisionEntries = parseDecisionLogFile(DECISIONS_LOG_PATH);
     const fallbackEntries = decisionEntries.length === 0 ? parseStateDecisionTable(text) : [];
@@ -275,7 +292,7 @@ function main() {
 
     upsertResults.decisions = {
       value: `${migratedDecisions} entries`,
-      source: fs.existsSync(DECISIONS_LOG_PATH) ? 'DECISIONS-LOG.md' : 'STATE.md',
+      source: decisionsLogExists ? 'DECISIONS-LOG.md' : 'STATE.md',
     };
   }
 
@@ -352,7 +369,14 @@ function replay() {
   console.log(`${B}───────────────────────────────────────${N}`);
   console.log('');
 
-  if (!fs.existsSync(EVENT_LOG_PATH)) {
+  const eventLogContent = (() => {
+    try {
+      return fs.readFileSync(EVENT_LOG_PATH, 'utf8');
+    } catch {
+      return null;
+    }
+  })();
+  if (eventLogContent === null) {
     console.log(`${Y}⚠  No EVENT-LOG.jsonl found at ${EVENT_LOG_PATH.replace(ROOT + '/', '')}${N}`);
     console.log('   Run events through the orchestrator or seed the log first.');
     console.log('');
@@ -370,12 +394,13 @@ function replay() {
   const eventCount = require('./event-log').readEvents().length;
   console.log(`  Replayed ${eventCount} event(s) from EVENT-LOG.jsonl`);
 
-  if (!fs.existsSync(STATE_PATH)) {
+  let text;
+  try {
+    text = fs.readFileSync(STATE_PATH, 'utf8');
+  } catch {
     console.log(`${Y}⚠  STATE.md not found — nothing to patch${N}`);
     process.exit(0);
   }
-
-  let text = fs.readFileSync(STATE_PATH, 'utf8');
   let changed = false;
 
   // 1. Patch **Current Focus**: line
