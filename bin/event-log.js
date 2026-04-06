@@ -50,15 +50,36 @@ const EVENT_TYPES = {
  * Append a typed event to EVENT-LOG.jsonl.
  * Automatically injects `ts` (ISO timestamp) if not provided by caller.
  *
+ * For `blocker_added` events: throws if an open blocker with the same `id`
+ * already exists in the log — prevents silent ID collisions that would cause
+ * a single `blocker_resolved` to close multiple unrelated blockers.
+ *
  * @param {object} event - Event payload. Must include a `type` field.
  * @param {string} [logPath] - Override log path (for tests).
  * @returns {object} The stored event entry (with timestamp).
  * @throws {Error} If event or event.type is missing.
+ * @throws {Error} If a duplicate blocker id is detected.
  */
 function appendEvent(event, logPath = EVENT_LOG_PATH) {
   if (!event || !event.type) {
     throw new Error('appendEvent: event.type is required');
   }
+
+  // Guard: blocker ID must be unique among open blockers
+  if (event.type === EVENT_TYPES.BLOCKER_ADDED && event.id) {
+    const existing = readEvents(logPath);
+    const openIds = new Set();
+    for (const evt of existing) {
+      if (evt.type === EVENT_TYPES.BLOCKER_ADDED && evt.id) openIds.add(evt.id);
+      if (evt.type === EVENT_TYPES.BLOCKER_RESOLVED && evt.id) openIds.delete(evt.id);
+    }
+    if (openIds.has(event.id)) {
+      throw new Error(
+        `appendEvent: blocker id "${event.id}" already exists as an open blocker — use a unique id or resolve the existing one first`
+      );
+    }
+  }
+
   const entry = { ts: new Date().toISOString(), ...event };
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   fs.appendFileSync(logPath, JSON.stringify(entry) + '\n', 'utf8');
@@ -69,22 +90,41 @@ function appendEvent(event, logPath = EVENT_LOG_PATH) {
  * Read all events from EVENT-LOG.jsonl in emission order.
  *
  * @param {string} [logPath] - Override log path (for tests).
- * @returns {object[]} Array of parsed event objects.
- * @throws {Error} If a line contains invalid JSON (data corruption guard).
+ * @param {object} [opts]
+ * @param {boolean} [opts.skipCorrupt=false] - When true, silently skip lines with
+ *   invalid JSON instead of throwing. Corrupt lines are collected in the returned
+ *   array's `.corrupt` property as `{ line, index, raw }` objects so callers can
+ *   surface or repair them without blocking replay.
+ * @returns {object[]} Array of parsed event objects (with optional `.corrupt` property).
+ * @throws {Error} If a line contains invalid JSON and skipCorrupt is false.
  */
-function readEvents(logPath = EVENT_LOG_PATH) {
-  if (!fs.existsSync(logPath)) return [];
-  return fs
-    .readFileSync(logPath, 'utf8')
+function readEvents(logPath = EVENT_LOG_PATH, { skipCorrupt = false } = {}) {
+  let raw;
+  try {
+    raw = fs.readFileSync(logPath, 'utf8');
+  } catch {
+    return [];
+  }
+
+  const corrupt = [];
+  const events = raw
     .split('\n')
     .filter(Boolean)
-    .map((line, i) => {
+    .reduce((acc, line, i) => {
       try {
-        return JSON.parse(line);
+        acc.push(JSON.parse(line));
       } catch {
-        throw new Error(`EVENT-LOG.jsonl: invalid JSON on line ${i + 1}: ${line}`);
+        if (skipCorrupt) {
+          corrupt.push({ index: i + 1, line });
+        } else {
+          throw new Error(`EVENT-LOG.jsonl: invalid JSON on line ${i + 1}: ${line}`);
+        }
       }
-    });
+      return acc;
+    }, []);
+
+  if (corrupt.length > 0) events.corrupt = corrupt;
+  return events;
 }
 
 /**
@@ -100,10 +140,12 @@ function readEvents(logPath = EVENT_LOG_PATH) {
  * hand-authored and not modified by replay — they represent human-curated context.
  *
  * @param {string} [logPath] - Override log path (for tests).
+ * @param {object} [opts] - Options forwarded to readEvents.
+ * @param {boolean} [opts.skipCorrupt=false] - Skip corrupt lines instead of throwing.
  * @returns {{ currentFocus: string|null, recentlyCompleted: object[], openBlockers: object[], activeMilestone: string|null }}
  */
-function replayState(logPath = EVENT_LOG_PATH) {
-  const events = readEvents(logPath);
+function replayState(logPath = EVENT_LOG_PATH, opts = {}) {
+  const events = readEvents(logPath, opts);
   const state = {
     currentFocus: null,
     recentlyCompleted: [],
@@ -137,6 +179,15 @@ function replayState(logPath = EVENT_LOG_PATH) {
 
       case EVENT_TYPES.MILESTONE_COMPLETE:
         state.activeMilestone = null;
+        break;
+
+      case EVENT_TYPES.SNAPSHOT:
+        // Snapshots are metadata-only — they record a point-in-time capture but
+        // do not change derived state. Explicit case prevents fall-through to default.
+        break;
+
+      default:
+        // Unknown event types are intentionally ignored — forward compatibility.
         break;
     }
   }

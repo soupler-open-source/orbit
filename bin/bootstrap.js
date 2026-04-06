@@ -406,11 +406,17 @@ function replay() {
   // 1. Patch **Current Focus**: line
   if (derived.currentFocus) {
     const focusRx = /(\*\*Current Focus\*\*:\s*)(.+)/;
-    const updated = text.replace(focusRx, (_, prefix) => `${prefix}${derived.currentFocus}`);
-    if (updated !== text) {
-      log(`${G}✓${N}`, 'focus', `→ ${derived.currentFocus}`, 'phase_transition events');
-      text = updated;
-      changed = true;
+    if (!focusRx.test(text)) {
+      console.log(
+        `${Y}  ⚠ [replay] Could not find "**Current Focus**:" in STATE.md — section may have been renamed or removed. Skipping focus patch.${N}`
+      );
+    } else {
+      const updated = text.replace(focusRx, (_, prefix) => `${prefix}${derived.currentFocus}`);
+      if (updated !== text) {
+        log(`${G}✓${N}`, 'focus', `→ ${derived.currentFocus}`, 'phase_transition events');
+        text = updated;
+        changed = true;
+      }
     }
   }
 
@@ -424,23 +430,29 @@ function replay() {
       .join('\n');
 
     const recentRx = /(## Recently Completed \(last 5 tasks\)\s*\n```text\s*\n)([\s\S]*?)(\n```)/;
-    const updated = text.replace(recentRx, (_, open, _old, close) => {
-      return `${open}${completedLines}${close}`;
-    });
-    if (updated !== text) {
-      log(
-        `${G}✓${N}`,
-        'completed',
-        `${derived.recentlyCompleted.length} task(s) patched`,
-        'task_complete events'
+    if (!recentRx.test(text)) {
+      console.log(
+        `${Y}  ⚠ [replay] Could not find "## Recently Completed (last 5 tasks)" code block in STATE.md — section may have been renamed or removed. Skipping completed patch.${N}`
       );
-      text = updated;
-      changed = true;
+    } else {
+      const updated = text.replace(recentRx, (_, open, _old, close) => {
+        return `${open}${completedLines}${close}`;
+      });
+      if (updated !== text) {
+        log(
+          `${G}✓${N}`,
+          'completed',
+          `${derived.recentlyCompleted.length} task(s) patched`,
+          'task_complete events'
+        );
+        text = updated;
+        changed = true;
+      }
     }
   }
 
   // 3. Patch ## Blockers block
-  if (derived.openBlockers.length > 0 || derived.openBlockers.length === 0) {
+  {
     const blockerLines =
       derived.openBlockers.length > 0
         ? derived.openBlockers
@@ -449,13 +461,19 @@ function replay() {
         : '(none)';
 
     const blockerRx = /(## Blockers\s*\n```text\s*\n)([\s\S]*?)(\n```)/;
-    const updated = text.replace(blockerRx, (_, open, _old, close) => {
-      return `${open}${blockerLines}${close}`;
-    });
-    if (updated !== text) {
-      log(`${G}✓${N}`, 'blockers', `${derived.openBlockers.length} open`, 'blocker events');
-      text = updated;
-      changed = true;
+    if (!blockerRx.test(text)) {
+      console.log(
+        `${Y}  ⚠ [replay] Could not find "## Blockers" code block in STATE.md — section may have been renamed or removed. Skipping blockers patch.${N}`
+      );
+    } else {
+      const updated = text.replace(blockerRx, (_, open, _old, close) => {
+        return `${open}${blockerLines}${close}`;
+      });
+      if (updated !== text) {
+        log(`${G}✓${N}`, 'blockers', `${derived.openBlockers.length} open`, 'blocker events');
+        text = updated;
+        changed = true;
+      }
     }
   }
 

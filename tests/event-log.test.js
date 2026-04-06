@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { appendEvent, readEvents, replayState, recordDecision, EVENT_TYPES } from '../bin/event-log.js';
+import {
+  appendEvent,
+  readEvents,
+  replayState,
+  recordDecision,
+  EVENT_TYPES,
+} from '../bin/event-log.js';
 
 function tmpLog() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-event-log-'));
@@ -71,6 +77,25 @@ describe('appendEvent', () => {
     expect(result.ts).toBeDefined();
     cleanupLog(logPath);
   });
+
+  it('throws when adding a blocker_added with a duplicate open id', () => {
+    const logPath = tmpLog();
+    appendEvent({ type: 'blocker_added', id: 'B-001', note: 'first' }, logPath);
+    expect(() =>
+      appendEvent({ type: 'blocker_added', id: 'B-001', note: 'duplicate' }, logPath)
+    ).toThrow('blocker id "B-001" already exists as an open blocker');
+    cleanupLog(logPath);
+  });
+
+  it('allows re-adding a blocker id after it has been resolved', () => {
+    const logPath = tmpLog();
+    appendEvent({ type: 'blocker_added', id: 'B-001', note: 'first' }, logPath);
+    appendEvent({ type: 'blocker_resolved', id: 'B-001' }, logPath);
+    expect(() =>
+      appendEvent({ type: 'blocker_added', id: 'B-001', note: 'reopened' }, logPath)
+    ).not.toThrow();
+    cleanupLog(logPath);
+  });
 });
 
 // ── readEvents ─────────────────────────────────────────────────────────────────
@@ -103,6 +128,28 @@ describe('readEvents', () => {
     appendEvent({ type: 'task_open', issue: '#99' }, logPath);
     const events = readEvents(logPath);
     expect(events).toHaveLength(1);
+    cleanupLog(logPath);
+  });
+
+  it('skipCorrupt: skips bad lines and returns good events with .corrupt metadata', () => {
+    const logPath = tmpLog();
+    appendEvent({ type: 'task_complete', issue: '#1' }, logPath);
+    fs.appendFileSync(logPath, 'not-valid-json\n', 'utf8');
+    appendEvent({ type: 'task_complete', issue: '#3' }, logPath);
+    const events = readEvents(logPath, { skipCorrupt: true });
+    expect(events).toHaveLength(2);
+    expect(events[0].issue).toBe('#1');
+    expect(events[1].issue).toBe('#3');
+    expect(events.corrupt).toHaveLength(1);
+    expect(events.corrupt[0].index).toBe(2);
+    cleanupLog(logPath);
+  });
+
+  it('skipCorrupt: returns empty .corrupt when all lines are valid', () => {
+    const logPath = tmpLog();
+    appendEvent({ type: 'task_complete', issue: '#1' }, logPath);
+    const events = readEvents(logPath, { skipCorrupt: true });
+    expect(events.corrupt).toBeUndefined();
     cleanupLog(logPath);
   });
 });
@@ -143,11 +190,34 @@ describe('replayState', () => {
   it('resolves blockers when blocker_resolved event follows blocker_added', () => {
     const logPath = tmpLog();
     appendEvent({ type: 'blocker_added', id: 'B-001', note: 'PR #190 in flight' }, logPath);
-    appendEvent({ type: 'blocker_added', id: 'B-002', note: 'Wave 4 blocked on Wave 0.5' }, logPath);
+    appendEvent(
+      { type: 'blocker_added', id: 'B-002', note: 'Wave 4 blocked on Wave 0.5' },
+      logPath
+    );
     appendEvent({ type: 'blocker_resolved', id: 'B-001' }, logPath);
     const state = replayState(logPath);
     expect(state.openBlockers).toHaveLength(1);
     expect(state.openBlockers[0].id).toBe('B-002');
+    cleanupLog(logPath);
+  });
+
+  it('ignores snapshot events without changing derived state', () => {
+    const logPath = tmpLog();
+    appendEvent({ type: 'phase_transition', to: 'Wave 0.5' }, logPath);
+    appendEvent({ type: 'snapshot', note: 'point-in-time capture' }, logPath);
+    const state = replayState(logPath);
+    expect(state.currentFocus).toBe('Wave 0.5');
+    expect(state.recentlyCompleted).toEqual([]);
+    cleanupLog(logPath);
+  });
+
+  it('ignores unknown event types without throwing', () => {
+    const logPath = tmpLog();
+    appendEvent({ type: 'phase_transition', to: 'Wave 1' }, logPath);
+    appendEvent({ type: 'future_event_type_v3', data: 'anything' }, logPath);
+    expect(() => replayState(logPath)).not.toThrow();
+    const state = replayState(logPath);
+    expect(state.currentFocus).toBe('Wave 1');
     cleanupLog(logPath);
   });
 
