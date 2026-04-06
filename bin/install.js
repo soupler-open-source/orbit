@@ -78,12 +78,13 @@ function nexusSync() {
   console.log(c.cyan(`\n▸ Syncing Nexus Workspace (Auto-Discovery)...\n`));
 
   const nexusPath = path.join(projectDir, 'orbit.nexus.json');
-  if (!fs.existsSync(nexusPath)) {
+  let nexus;
+  try {
+    nexus = JSON.parse(fs.readFileSync(nexusPath, 'utf8'));
+  } catch {
     console.error(c.yellow('  ⚠️  No orbit.nexus.json found. Run "orbit nexus init" first.'));
     return;
   }
-
-  const nexus = JSON.parse(fs.readFileSync(nexusPath, 'utf8'));
   const entries = fs.readdirSync(projectDir, { withFileTypes: true });
 
   nexus.repos = [];
