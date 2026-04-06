@@ -293,3 +293,74 @@ module.exports = {
   syncPullRequest,
   validatePullRequestArtifacts,
 };
+
+// CLI entry point — used by the Orbit orchestrator instead of bare `gh pr create`.
+// Ensures every PR body is built and validated against governance rules before submission.
+//
+// Usage:
+//   node bin/pull-request-controller.js \
+//     --issue "#214" \
+//     --branch "feat/214-docs-index" \
+//     --title "feat(docs): ..." \
+//     --commands "bash bin/validate.sh || npm test" \
+//     [--base develop] \
+//     [--review-command "/orbit:review"] \
+//     [--agents "reviewer"] \
+//     [--ship-decision "APPROVED"] \
+//     [--findings "none"] \
+//     [--residual-risks "none"] \
+//     [--merge-notes "..."]
+if (require.main === module) {
+  const args = {};
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i].startsWith('--')) {
+      args[argv[i].slice(2)] = argv[i + 1] || '';
+      i += 1;
+    }
+  }
+
+  const issue = args.issue;
+  const branch = args.branch;
+  const title = args.title;
+  const commands = args.commands || '';
+  const baseRef = args.base || 'develop';
+
+  if (!issue || !branch || !title) {
+    process.stderr.write('Usage: node bin/pull-request-controller.js --issue "#N" --branch "..." --title "..."\n');
+    process.exit(1);
+  }
+
+  let changedFiles = [];
+  try {
+    const { execFileSync: exec } = require('child_process');
+    changedFiles = exec('git', ['diff', '--name-only', `origin/${baseRef}...HEAD`], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim().split('\n').filter(Boolean);
+  } catch (_) { /* not fatal */ }
+
+  try {
+    const result = syncPullRequest(
+      {
+        issue,
+        branch,
+        title,
+        verificationCommands: commands,
+        changedFiles,
+        args: {
+          baseRef,
+          reviewCommand: args['review-command'],
+          reviewAgents: args.agents,
+          shipDecision: args['ship-decision'],
+          findingsAddressed: args.findings,
+          residualRisks: args['residual-risks'] ? [args['residual-risks']] : undefined,
+          mergeNotes: args['merge-notes'] ? [args['merge-notes']] : undefined,
+        },
+      }
+    );
+    process.stdout.write(`PR ${result.action}: ${result.url}\n`);
+  } catch (error) {
+    process.stderr.write(`${error.message}\n`);
+    process.exit(1);
+  }
+}
