@@ -397,6 +397,18 @@ init_project_state() {
     qecho "  ✓ .orbit/state/OPERATIONAL-RULES.json (already exists — preserved)"
   fi
 
+  # Seed a blank EVENT-LOG.jsonl if missing — ensures bootstrap --replay has a
+  # clean project-scoped log rather than inheriting the Orbit framework's own history.
+  if [[ ! -f "$state_dir/EVENT-LOG.jsonl" ]]; then
+    local project_name
+    project_name="$(basename "$PROJECT_DIR")"
+    echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"type\":\"snapshot\",\"note\":\"Orbit installed for ${project_name}\",\"actor\":\"install.sh\"}" \
+      > "$state_dir/EVENT-LOG.jsonl"
+    qecho "  ✓ .orbit/state/EVENT-LOG.jsonl (seeded for ${project_name})"
+  else
+    qecho "  ✓ .orbit/state/EVENT-LOG.jsonl (already exists — preserved)"
+  fi
+
   # Copy hook scripts to project-local .orbit/hooks/
   for f in "$FRAMEWORK_DIR"/hooks/scripts/*.sh; do
     name=$(basename "$f")

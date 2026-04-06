@@ -154,6 +154,24 @@ main() {
   echo -e "${B}━━━ Orbit Setup ━━━━━━━━━━━━━━━━━━━━━━━━${N}"
   echo ""
 
+  # ── Restore tracked .orbit state files from git ──────────────────────────────
+  # Only restore when setup is running inside the Orbit framework repo itself
+  # (i.e. developing Orbit with Orbit). When Orbit is installed into a different
+  # project, install.sh already seeds blank templates — restoring from git here
+  # would overwrite the target project's state with Orbit's own history.
+  local project_dir_real framework_dir_real
+  project_dir_real="$(cd "$PWD" && pwd -P)"
+  framework_dir_real="$(cd "$FRAMEWORK_DIR" && pwd -P)"
+
+  if [[ "$project_dir_real" == "$framework_dir_real" ]]; then
+    if git -C "$FRAMEWORK_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+      if git -C "$FRAMEWORK_DIR" checkout -- .orbit/ 2>/dev/null; then
+        echo -e "  ${G}✓${N} .orbit state files restored from git (Orbit self-install)"
+      fi
+    fi
+  fi
+  echo ""
+
   # Determine tools to install
   local tools_str
   if [[ -n "$explicit_tools" ]]; then
