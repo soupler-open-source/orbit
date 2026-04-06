@@ -7,7 +7,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 ## Project Context
 - **Active Milestone**: v2.9.0 — Idea to Market (self-orchestrated by Orbit)
 - **Active Phase**: Wave 0 → Wave 1 → Wave 1.5 → Wave 2 → Wave 3 → Wave 0.5 → Wave 4
-- **Current Focus**: Wave 0.5 — Foundation Hardening
+- **Current Focus**: Wave 0.5
 - **Current Version**: v2.8.1
 - **Current Branch**: develop
 - **Active PR**: none
@@ -32,17 +32,18 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Blockers
 ```text
-[OPEN] PR #190 — strict top-level Orbit command dispatch enforcement is still in flight.
-[OPEN] Wave 4 is BLOCKED on Wave 0.5 Foundation Hardening (#214, #215 remain open).
+[OPEN] B-001 — PR #190 — strict top-level Orbit command dispatch enforcement still in flight
+[OPEN] B-002 — Wave 4 BLOCKED on Wave 0.5 Foundation Hardening (#212, #213, #214, #215)
+[OPEN] B-003 — Wave 4 CI hardening (#79) additionally blocked on test suite green (#205)
 ```
 
 ## Recently Completed (last 5 tasks)
 ```text
-✅ #205 fix(tests): resolve 2 failing command-runtime assertions — PR isolation + branch-mismatch format — Wave 4A
-✅ #213 feat(state): implement event-sourced state model — EVENT-LOG.jsonl + bootstrap --replay — Wave 0.5
-✅ #212 chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md — Wave 0.5
-✅ #76 feat(state): add DECISIONS-LOG.md schema for temporal decision tracking - Wave 3
-✅ #74 feat(workflows): add /orbit:discover workflow - Wave 2
+✅ #76 feat(state): add DECISIONS-LOG.md schema for temporal decision tracking
+✅ #74 feat(workflows): add /orbit:discover workflow
+✅ #75 feat(workflows): add /orbit:launch workflow
+✅ #72 feat(orchestrator): add loop detection for autonomous mode
+✅ #212 chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md
 ```
 
 ## Todos + Seeds
@@ -57,7 +58,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [x] #64 — feat(agents): add product-manager agent
 - [x] #65 — feat(agents): add business-analyst agent
 - [x] #66 — feat(agents): add qa-engineer agent
-- [ ] #67 — feat(agents): add technical-writer agent
+- [x] #67 — feat(agents): add technical-writer agent
 
 #### Wave 1.5 — Productization Layer
 - [ ] #68 — feat(agents): add launch-planner agent (GTM templates, not strategy)
@@ -75,7 +76,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [x] #76 — feat(state): add DECISIONS-LOG.md schema for temporal decision tracking
 - [x] #77 — fix(orchestrator): add CI=true guard for STATE.md mutex with documentation
 - [x] #78 — chore(structure): clean repo root + add GENERATED headers + restructure templates
-- [ ] #80 — chore(registry): consolidate orbit.registry.json for all v2.9.0 agents/skills/workflows
+- [x] #80 — chore(registry): consolidate orbit.registry.json for all v2.9.0 agents/skills/workflows
 
 #### Wave 0.5 — Foundation Hardening (CURRENT)
 - [x] #212 — chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md
@@ -89,8 +90,8 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [ ] #207 — fix(security): flip identity_separation default to true
 - [ ] #208 — feat(test): expand vitest coverage surface to safety-evaluator and prompt-dispatch
 - [ ] #211 — fix(ci): add Windows C:\Users\ path pattern to Sentinel PII scan
-- [ ] #79 — feat(ci): adopt engineering-standards pipeline.yml — replace sentinel boilerplate
-- [ ] #81 — docs(readme): rewrite product positioning for idea-to-market audience
+- [~] #79 — feat(ci): adopt engineering-standards pipeline.yml — reassigned to v3.0.0 milestone (not v2.9.0)
+- [x] #81 — docs(readme): rewrite product positioning for idea-to-market audience
 
 ## Seeds (Forward Ideas)
 ```text
@@ -102,6 +103,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Open Questions
 ```text
-- Should open board items #67 and #68 be reconciled against already-landed agent surfaces before the milestone is marked complete?
-- Which final release branch/cut process should own the v2.9.0 ship wave once README and CI modernization land?
+- #67 (technical-writer) and #81 (README) are closed; #68 (launch-planner) remains open — confirm if still in scope for v2.9.0.
+- #79 (CI pipeline) was reassigned to v3.0.0; confirm if v2.9.0 Wave 4 CI hardening is satisfied without it.
+- Which final release branch/cut process should own the v2.9.0 ship wave once Wave 0.5 clears?
 ```
