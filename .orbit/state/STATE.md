@@ -23,7 +23,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 | 1.5 | Productization Layer | 🔄 in progress | GTM and specialist-skill follow-through still have open board items. |
 | 2 | Safety + Workflow Primitives | ✅ shipped | Clarification gate, loop detection, launch/discover workflows, and decisions log are landed. |
 | 3 | Structure + Registry Discipline | 🔄 in progress | Repo cleanup landed; registry consolidation is still open. |
-| 0.5 | Foundation Hardening | 🔄 in progress | Prerequisite to Wave 4. Event-sourced state, docs index, naming enforcement, plan relocation. |
+| 0.5 | Foundation Hardening | 🔄 in progress | Prerequisite to Wave 4. Event-sourced state ✅, docs index, naming enforcement, plan relocation ✅. |
 | 4 | Ship + Positioning | ⏳ blocked on Wave 0.5 | 7 audit-sourced issues (#205–#211) + #79, #81. Cannot start until Wave 0.5 complete. |
 
 ## Decision Ledger
@@ -33,17 +33,16 @@ Use this file to summarize the current release surface, not to duplicate the ful
 ## Blockers
 ```text
 [OPEN] PR #190 — strict top-level Orbit command dispatch enforcement is still in flight.
-[OPEN] Wave 4 is BLOCKED on Wave 0.5 Foundation Hardening (#212, #213, #214, #215).
-[OPEN] Wave 4 CI hardening (#79) additionally blocked on test suite green (#205).
+[OPEN] Wave 4 is BLOCKED on Wave 0.5 Foundation Hardening (#214, #215 remain open).
 ```
 
 ## Recently Completed (last 5 tasks)
 ```text
-✅ #212 chore(plans): move Wave 4 plan to docs/plans/v2.9.0-wave-4-ship-positioning.md — Wave 0.5
+✅ #205 fix(tests): resolve 2 failing command-runtime assertions — PR isolation + branch-mismatch format — Wave 4A
+✅ #213 feat(state): implement event-sourced state model — EVENT-LOG.jsonl + bootstrap --replay — Wave 0.5
+✅ #212 chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md — Wave 0.5
 ✅ #76 feat(state): add DECISIONS-LOG.md schema for temporal decision tracking - Wave 3
 ✅ #74 feat(workflows): add /orbit:discover workflow - Wave 2
-✅ #75 feat(workflows): add /orbit:launch workflow - Wave 2
-✅ #72 feat(orchestrator): add loop detection for autonomous mode - Wave 2
 ```
 
 ## Todos + Seeds
@@ -80,12 +79,12 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 #### Wave 0.5 — Foundation Hardening (CURRENT)
 - [x] #212 — chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md
-- [ ] #213 — feat(state): implement event-sourced state model — typed event log + STATE.md as materialized view
+- [x] #213 — feat(state): implement event-sourced state model — typed event log + STATE.md as materialized view
 - [ ] #214 — feat(docs): create documentation index with reading order and folder contracts
 - [ ] #215 — feat(ci): add docs artifact naming gate to Sentinel — enforce artifact-conventions.md at commit time
 
 #### Wave 4 — Ship + Positioning (Audit-Expanded — BLOCKED on Wave 0.5)
-- [ ] #205 — fix(tests): resolve 2 failing command-runtime assertions — PR isolation + branch-mismatch format
+- [x] #205 — fix(tests): resolve 2 failing command-runtime assertions — PR isolation + branch-mismatch format
 - [ ] #206 — feat(security): enforce orbit.config.json schema validation at orchestrator startup
 - [ ] #207 — fix(security): flip identity_separation default to true
 - [ ] #208 — feat(test): expand vitest coverage surface to safety-evaluator and prompt-dispatch

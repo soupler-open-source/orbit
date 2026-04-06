@@ -95,7 +95,8 @@ function buildCheckpointManifest({ args = {}, profile = {}, evidence = {}, workf
   const branch = evidence.branch || args.branch || null;
   const currentBranch = safeExec(['git', 'rev-parse', '--abbrev-ref', 'HEAD']) || branch;
   const issue = args.issue || evidence.issue || null;
-  const pr = args.pr || args.prNumber || evidence.prNumber || null;
+  const prStatusIsNotOpen = args.prStatus === 'not_open' || evidence.prStatus === 'not_open';
+  const pr = prStatusIsNotOpen ? null : args.pr || args.prNumber || evidence.prNumber || null;
   const dirtyOutput = safeExec(['git', 'status', '--porcelain']);
   const unrelatedLocalChanges = dirtyOutput
     .split('\n')
