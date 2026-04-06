@@ -41,5 +41,36 @@ fi
 
 "$ROOT_DIR/hooks/scripts/sync-context.sh" || true
 
-echo "Orbit: Session recorded at $TIMESTAMP (branch=$GIT_BRANCH, commit=$GIT_COMMIT)" >&2
+SNAPSHOT_FILE="$STATE_DIR/pre-compact-snapshot.md"
+
+# Write snapshot on normal session end — same file /orbit:resume reads.
+# Without this, the snapshot only exists after auto-compaction, not after
+# deliberate exits — the exact moment resume context is most needed.
+cat > "$SNAPSHOT_FILE" << SNAPSHOT
+# Orbit Pre-Compact Snapshot
+> Session ended at: $TIMESTAMP
+
+## Session State at End
+- Branch: \`$GIT_BRANCH\`
+- Last commit: \`$GIT_COMMIT\`
+- Snapshot saved: $TIMESTAMP
+
+## Recent Commits
+\`\`\`
+$(git log --oneline -10 2>/dev/null || echo "git log unavailable")
+\`\`\`
+
+## Uncommitted Changes
+\`\`\`
+$(git diff --stat 2>/dev/null || echo "none")
+\`\`\`
+
+## Resume Instructions
+1. Run \`/orbit:resume\` in the new session
+2. This loads STATE.md + this snapshot
+3. Check commits above to reconstruct what was in progress
+4. Continue from last atomic task boundary
+SNAPSHOT
+
+echo "Orbit: Session recorded and snapshot saved at $TIMESTAMP (branch=$GIT_BRANCH, commit=$GIT_COMMIT)" >&2
 exit 0
