@@ -477,7 +477,7 @@ function exportStateFile(db) {
 function exportDecisionLogFile(db) {
   const decisions = db
     .prepare(
-      'SELECT date, version, decision, rationale, phase, made_by, context, supersedes, still_valid, invalidated_at FROM decisions ORDER BY id DESC'
+      'SELECT date, version, decision, rationale, phase, made_by, context, supersedes, still_valid, invalidated_at FROM decisions ORDER BY date DESC, decision ASC'
     )
     .all()
     .map((decision) => ({
