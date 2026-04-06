@@ -308,16 +308,21 @@ class OrbitOrchestrator {
   /**
    * Dispatches a wave of tasks to parallel subagents.
    */
-  async executeWave(tasks, waveId = Date.now().toString()) {
+  async executeWave(tasks, waveId = Date.now().toString(), waveLabel = null) {
     console.log(formatWaveStart({ wave: waveId, taskCount: tasks.length }));
     console.log(`\n🚀 Starting Wave ${waveId} with ${tasks.length} agents...\n`);
 
+    // Use an explicit human-readable label when provided; otherwise fall back to
+    // "Wave <waveId>". This prevents phase_transition events from recording
+    // opaque timestamp-based IDs like "Wave 1744123456789" in the event log.
+    const phaseLabel = waveLabel || `Wave ${waveId}`;
     const eventLogPath = path.join(this.stateDir, 'EVENT-LOG.jsonl');
     try {
       appendEvent(
         {
           type: EVENT_TYPES.PHASE_TRANSITION,
-          to: `Wave ${waveId}`,
+          to: phaseLabel,
+          waveId,
           taskCount: tasks.length,
           actor: 'orchestrator',
         },
