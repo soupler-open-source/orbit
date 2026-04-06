@@ -38,6 +38,16 @@ console.log(`${c.bold('╚══════════════════
 
 const projectDir = process.cwd();
 
+/** TOCTOU-safe existence check: stat once, cache the result, never re-check. */
+function pathExists(p) {
+  try {
+    fs.statSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function runInstaller() {
   const installArgs = [INSTALL_SCRIPT, isGlobal ? '--global' : '--local'];
   if (args.includes('--hooks-only')) installArgs.push('--hooks-only');
@@ -95,14 +105,16 @@ function nexusSync() {
       const orbitConfig = path.join(repoPath, 'orbit.config.json');
       const gitDir = path.join(repoPath, '.git');
 
-      if (fs.existsSync(orbitConfig) || fs.existsSync(gitDir)) {
+      const isOrbitAware = pathExists(orbitConfig);
+      const hasGitDir = pathExists(gitDir);
+      if (isOrbitAware || hasGitDir) {
         nexus.repos.push({
           name: entry.name,
           path: `./${entry.name}`,
-          orbit_aware: fs.existsSync(orbitConfig),
+          orbit_aware: isOrbitAware,
         });
         console.log(
-          `  ${c.green('✓')} Discovered Repo: ${c.bold(entry.name)} ${fs.existsSync(orbitConfig) ? '(Orbit-Aware)' : '(Legacy)'}`
+          `  ${c.green('✓')} Discovered Repo: ${c.bold(entry.name)} ${isOrbitAware ? '(Orbit-Aware)' : '(Legacy)'}`
         );
       }
     }
