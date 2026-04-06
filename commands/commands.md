@@ -306,10 +306,18 @@ Load `skills/deployment.md`. Requires PHASE-{N}-UAT.md to exist and pass.
    - `CHANGELOG.md` entry updates
    - `README.md` / user-facing documentation updates when behavior changed
    - release-note wording that explains the shipped phase clearly
-4. Create PR with auto-generated description:
-   - What was built
-   - How to test
-   - Changes to infrastructure/config
+4. Create PR using the controller — never bare `gh pr create`:
+   ```
+   node bin/pull-request-controller.js \
+     --issue "#N" \
+     --branch "<branch>" \
+     --title "<title>" \
+     --commands "<cmd1> || <cmd2>"
+   ```
+   The controller builds the body from the validated template, pre-validates all
+   governance rules (required headings, test-plan format, residual-risk labels,
+   Head SHA freshness), and only calls `gh pr create` if validation passes.
+   Bare `gh pr create --body "..."` bypasses all governance and is forbidden.
 5. If approved: deploy to staging → run smoke tests → deploy to prod
 6. Tag release: `v{milestone}.{phase}`
 7. Update STATE.md: phase marked shipped
@@ -485,7 +493,16 @@ If the user gives a plain prompt that implies a tracked implementation task, Orb
    ```
 4. Execute with relevant skill loaded
 5. Verify, commit, update STATE.md, and write the checkpoint manifest to `.orbit/state/checkpoints/latest.json`
-6. If the task is review-ready, push branch, generate the PR body from the repo-local controller, validate it locally against `validate-pr-governance` and `validate-doc-updates`, refresh the `Head SHA` marker, and only then create or update the PR before running `/orbit:review`
+6. If the task is review-ready, push the branch and open/refresh the PR using the controller CLI — never bare `gh pr create`:
+   ```
+   node bin/pull-request-controller.js \
+     --issue "#N" --branch "<branch>" --title "<title>" \
+     --commands "<cmd1> || <cmd2>"
+   ```
+   The controller builds the body from the validated template, enforces required headings,
+   test-plan command format (`` - `cmd` `` only), residual-risk single-line labels, and
+   Head SHA freshness — then calls `gh pr create` only if all checks pass. If validation
+   fails, fix the inputs and retry; do not bypass with bare `gh pr create`.
 7. Before requesting review or ship progression, refresh the PR body evidence:
    - `## Test plan` lists the commands actually run
    - `Orbit Self-Review` records the review command, dispatched agents, ship decision, and findings handled
