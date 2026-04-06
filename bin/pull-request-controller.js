@@ -327,7 +327,9 @@ if (require.main === module) {
   const baseRef = args.base || 'develop';
 
   if (!issue || !branch || !title) {
-    process.stderr.write('Usage: node bin/pull-request-controller.js --issue "#N" --branch "..." --title "..."\n');
+    process.stderr.write(
+      'Usage: node bin/pull-request-controller.js --issue "#N" --branch "..." --title "..."\n'
+    );
     process.exit(1);
   }
 
@@ -335,29 +337,33 @@ if (require.main === module) {
   try {
     const { execFileSync: exec } = require('child_process');
     changedFiles = exec('git', ['diff', '--name-only', `origin/${baseRef}...HEAD`], {
-      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim().split('\n').filter(Boolean);
-  } catch (_) { /* not fatal */ }
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+  } catch (_) {
+    /* not fatal */
+  }
 
   try {
-    const result = syncPullRequest(
-      {
-        issue,
-        branch,
-        title,
-        verificationCommands: commands,
-        changedFiles,
-        args: {
-          baseRef,
-          reviewCommand: args['review-command'],
-          reviewAgents: args.agents,
-          shipDecision: args['ship-decision'],
-          findingsAddressed: args.findings,
-          residualRisks: args['residual-risks'] ? [args['residual-risks']] : undefined,
-          mergeNotes: args['merge-notes'] ? [args['merge-notes']] : undefined,
-        },
-      }
-    );
+    const result = syncPullRequest({
+      issue,
+      branch,
+      title,
+      verificationCommands: commands,
+      changedFiles,
+      args: {
+        baseRef,
+        reviewCommand: args['review-command'],
+        reviewAgents: args.agents,
+        shipDecision: args['ship-decision'],
+        findingsAddressed: args.findings,
+        residualRisks: args['residual-risks'] ? [args['residual-risks']] : undefined,
+        mergeNotes: args['merge-notes'] ? [args['merge-notes']] : undefined,
+      },
+    });
     process.stdout.write(`PR ${result.action}: ${result.url}\n`);
   } catch (error) {
     process.stderr.write(`${error.message}\n`);
