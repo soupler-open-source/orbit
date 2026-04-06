@@ -5,10 +5,12 @@ import path from 'node:path';
 import { appendEvent, readEvents, replayState, recordDecision, EVENT_TYPES } from '../bin/event-log.js';
 
 function tmpLog() {
-  return path.join(
-    os.tmpdir(),
-    `orbit-event-log-${Date.now()}-${Math.random().toString(36).slice(2)}.jsonl`
-  );
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-event-log-'));
+  return path.join(dir, 'event-log.jsonl');
+}
+
+function cleanupLog(logPath) {
+  fs.rmSync(path.dirname(logPath), { recursive: true, force: true });
 }
 
 // ── appendEvent ────────────────────────────────────────────────────────────────
@@ -22,7 +24,7 @@ describe('appendEvent', () => {
     const parsed = JSON.parse(lines[0]);
     expect(parsed.type).toBe('phase_transition');
     expect(parsed.to).toBe('Wave 1');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('adds an ISO timestamp automatically when ts is absent', () => {
@@ -34,7 +36,7 @@ describe('appendEvent', () => {
     expect(parsed.ts).toBeDefined();
     expect(parsed.ts >= before).toBe(true);
     expect(parsed.ts <= after).toBe(true);
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('throws when event.type is missing', () => {
@@ -59,7 +61,7 @@ describe('appendEvent', () => {
     expect(lines).toHaveLength(3);
     expect(JSON.parse(lines[0]).issue).toBe('#1');
     expect(JSON.parse(lines[2]).issue).toBe('#3');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('returns the stored event entry including the timestamp', () => {
@@ -67,7 +69,7 @@ describe('appendEvent', () => {
     const result = appendEvent({ type: 'milestone_start', milestone: 'v2.9.0' }, logPath);
     expect(result.type).toBe('milestone_start');
     expect(result.ts).toBeDefined();
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 });
 
@@ -87,7 +89,7 @@ describe('readEvents', () => {
     expect(events).toHaveLength(2);
     expect(events[0].type).toBe('milestone_start');
     expect(events[1].issue).toBe('#212');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('throws on invalid JSON in the log', () => {
@@ -101,7 +103,7 @@ describe('readEvents', () => {
     appendEvent({ type: 'task_open', issue: '#99' }, logPath);
     const events = readEvents(logPath);
     expect(events).toHaveLength(1);
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 });
 
@@ -123,7 +125,7 @@ describe('replayState', () => {
     appendEvent({ type: 'phase_transition', from: 'Wave 1', to: 'Wave 0.5' }, logPath);
     const state = replayState(logPath);
     expect(state.currentFocus).toBe('Wave 0.5');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('keeps only the last 5 task_complete events', () => {
@@ -135,7 +137,7 @@ describe('replayState', () => {
     expect(state.recentlyCompleted).toHaveLength(5);
     expect(state.recentlyCompleted[0].issue).toBe('#3');
     expect(state.recentlyCompleted[4].issue).toBe('#7');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('resolves blockers when blocker_resolved event follows blocker_added', () => {
@@ -146,7 +148,7 @@ describe('replayState', () => {
     const state = replayState(logPath);
     expect(state.openBlockers).toHaveLength(1);
     expect(state.openBlockers[0].id).toBe('B-002');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('tracks active milestone from milestone_start/milestone_complete', () => {
@@ -157,7 +159,7 @@ describe('replayState', () => {
     appendEvent({ type: 'milestone_complete', milestone: 'v2.9.0' }, logPath);
     state = replayState(logPath);
     expect(state.activeMilestone).toBeNull();
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 });
 
@@ -181,7 +183,7 @@ describe('recordDecision', () => {
     expect(evt.rationale).toBe('SOTA LLM memory pattern — event log as source of truth');
     expect(evt.version).toBe('v2.9.0');
     expect(evt.wave).toBe('Wave 0.5');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('defaults actor to "Orbit" when not provided', () => {
@@ -189,7 +191,7 @@ describe('recordDecision', () => {
     recordDecision({ decision: 'Test', rationale: 'Testing defaults' }, logPath);
     const [evt] = readEvents(logPath);
     expect(evt.actor).toBe('Orbit');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 
   it('respects explicit actor override', () => {
@@ -200,7 +202,7 @@ describe('recordDecision', () => {
     );
     const [evt] = readEvents(logPath);
     expect(evt.actor).toBe('human-operator');
-    fs.unlinkSync(logPath);
+    cleanupLog(logPath);
   });
 });
 
