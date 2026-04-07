@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   buildCheckpointManifest,
+  mergeCheckpoint,
   writeCheckpointManifest,
 } from '../bin/checkpoint-manifest.js';
 
@@ -66,6 +67,58 @@ describe('checkpoint manifest', () => {
     const latest = JSON.parse(fs.readFileSync(written.latestPath, 'utf8'));
     expect(latest.metadata.issue).toBe('#181');
     expect(latest.checkpoint).toBe('pr_ready');
+  });
+
+  it('mergeCheckpoint creates workflow_evidence when no checkpoint exists', () => {
+    const checkpointDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-checkpoint-merge-'));
+    const result = mergeCheckpoint(
+      { implementationStatus: 'done', testsStatus: 'unknown', reviewStatus: 'not_requested' },
+      { checkpointDir }
+    );
+    expect(result.workflow_evidence.implementationStatus).toBe('done');
+    expect(result.workflow_evidence.reviewStatus).toBe('not_requested');
+    const written = JSON.parse(
+      fs.readFileSync(path.join(checkpointDir, 'latest.json'), 'utf8')
+    );
+    expect(written.workflow_evidence.implementationStatus).toBe('done');
+  });
+
+  it('mergeCheckpoint preserves existing fields not in new update', () => {
+    const checkpointDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-checkpoint-merge2-'));
+    mergeCheckpoint(
+      { implementationStatus: 'done', testsStatus: 'passed', reviewStatus: 'not_requested', issue: '#227', branch: 'feat/227' },
+      { checkpointDir }
+    );
+    mergeCheckpoint(
+      { reviewStatus: 'approved', reviewEvidenceStatus: 'present', shipDecisionStatus: 'approved' },
+      { checkpointDir }
+    );
+    const written = JSON.parse(
+      fs.readFileSync(path.join(checkpointDir, 'latest.json'), 'utf8')
+    );
+    expect(written.workflow_evidence.implementationStatus).toBe('done');
+    expect(written.workflow_evidence.testsStatus).toBe('passed');
+    expect(written.workflow_evidence.reviewStatus).toBe('approved');
+    expect(written.workflow_evidence.reviewEvidenceStatus).toBe('present');
+  });
+
+  it('mergeCheckpoint resets review and test evidence on new implementation commit', () => {
+    const checkpointDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-checkpoint-reset-'));
+    // Simulate: review was clean
+    mergeCheckpoint(
+      { implementationStatus: 'done', testsStatus: 'passed', reviewStatus: 'approved', reviewEvidenceStatus: 'present' },
+      { checkpointDir }
+    );
+    // Simulate: new commit (implementation changed)
+    mergeCheckpoint(
+      { implementationStatus: 'done', testsStatus: 'unknown', reviewStatus: 'not_requested', reviewEvidenceStatus: 'missing' },
+      { checkpointDir }
+    );
+    const written = JSON.parse(
+      fs.readFileSync(path.join(checkpointDir, 'latest.json'), 'utf8')
+    );
+    expect(written.workflow_evidence.reviewStatus).toBe('not_requested');
+    expect(written.workflow_evidence.testsStatus).toBe('unknown');
   });
 
   it('treats command markdown as docs impact', () => {

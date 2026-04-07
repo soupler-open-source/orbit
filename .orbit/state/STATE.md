@@ -83,6 +83,8 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [x] #213 — feat(state): implement event-sourced state model — typed event log + STATE.md as materialized view
 - [ ] #214 — feat(docs): create documentation index with reading order and folder contracts
 - [ ] #215 — feat(ci): add docs artifact naming gate to Sentinel — enforce artifact-conventions.md at commit time
+- [ ] #225 — fix(resume): cross-reference GitHub PR state before reporting ship status
+- [x] #227 — feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3 + 5 complete
 
 #### Wave 4 — Ship + Positioning (Audit-Expanded — BLOCKED on Wave 0.5)
 - [x] #205 — fix(tests): resolve 2 failing command-runtime assertions — PR isolation + branch-mismatch format
