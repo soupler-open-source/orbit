@@ -7,6 +7,85 @@ const os = require('os');
 const path = require('path');
 const { validateBody, validateBranchName } = require('./validate-pr-governance');
 const { validateDocUpdates } = require('./validate-doc-updates');
+const { evaluateWorkflowState, formatSummary } = require('./workflow-state');
+
+const DEFAULT_CHECKPOINT_PATH = path.resolve(
+  __dirname,
+  '..',
+  '.orbit',
+  'state',
+  'checkpoints',
+  'latest.json'
+);
+
+/**
+ * Read workflow_evidence from the checkpoint manifest.
+ * Returns null if the checkpoint doesn't exist or has no evidence.
+ */
+function readCheckpointEvidence(checkpointPath) {
+  try {
+    const data = JSON.parse(fs.readFileSync(checkpointPath, 'utf8'));
+    return data.workflow_evidence || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Evaluate whether opening a PR is allowed based on checkpoint evidence.
+ *
+ * Rules:
+ * - No checkpoint → allowed with warning (graceful degradation, Wave 1 may not be live yet)
+ * - reviewStatus === 'not_requested' → BLOCKED (must run /orbit:review first)
+ * - reviewStatus === 'changes_requested' → BLOCKED (must fix findings first)
+ * - All other states → allowed (review approved, pending, or unknown — gate is lenient on unknown)
+ *
+ * testsStatus is not hard-gated here (Wave 3 will add that); a warning is emitted
+ * when testsStatus is unknown so operators are aware.
+ */
+function checkWorkflowGate(checkpointPath) {
+  const cpPath = checkpointPath || DEFAULT_CHECKPOINT_PATH;
+  const evidence = readCheckpointEvidence(cpPath);
+
+  if (!evidence) {
+    return {
+      allowed: true,
+      warning:
+        'No checkpoint found. Run /orbit:checkpoint after review to enable PR gate enforcement.',
+    };
+  }
+
+  const { reviewStatus, testsStatus } = evidence;
+
+  if (reviewStatus === 'not_requested') {
+    const workflow = evaluateWorkflowState(evidence);
+    return {
+      allowed: false,
+      message:
+        `[ORBIT] PR gate blocked: review has not been run.\n` +
+        `Run /orbit:review first, then /orbit:checkpoint --review-status approved.\n\n` +
+        formatSummary(workflow),
+    };
+  }
+
+  if (reviewStatus === 'changes_requested') {
+    const workflow = evaluateWorkflowState(evidence);
+    return {
+      allowed: false,
+      message:
+        `[ORBIT] PR gate blocked: review returned changes_requested — findings must be fixed.\n` +
+        `Fix findings, commit, re-run /orbit:review.\n\n` +
+        formatSummary(workflow),
+    };
+  }
+
+  const warning =
+    testsStatus === 'unknown'
+      ? 'Warning: testsStatus is unknown. Run tests and record with /orbit:checkpoint --tests-status passed.'
+      : undefined;
+
+  return { allowed: true, ...(warning ? { warning } : {}) };
+}
 
 function runGh(args) {
   return execFileSync('gh', args, {
@@ -288,7 +367,9 @@ function syncPullRequest(
 
 module.exports = {
   buildPullRequestBody,
+  checkWorkflowGate,
   deriveDocsUpdate,
+  readCheckpointEvidence,
   splitCommands,
   syncPullRequest,
   validatePullRequestArtifacts,
@@ -345,6 +426,16 @@ if (require.main === module) {
       .filter(Boolean);
   } catch (_) {
     /* not fatal */
+  }
+
+  // Workflow gate: block PR if review has not been run
+  const gate = checkWorkflowGate();
+  if (!gate.allowed) {
+    process.stderr.write(`${gate.message}\n`);
+    process.exit(1);
+  }
+  if (gate.warning) {
+    process.stderr.write(`[ORBIT] ${gate.warning}\n`);
   }
 
   try {
