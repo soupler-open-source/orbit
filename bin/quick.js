@@ -71,7 +71,7 @@ function runQuick(args = {}, deps = {}) {
   const explicitEnable = truthyFlag(
     runtimeArgs.executeReviewAction || runtimeArgs['execute-review-action']
   );
-  const reviewExecutionEnabled = (!explicitSkip || explicitEnable) || approvedRoute;
+  const reviewExecutionEnabled = !explicitSkip || explicitEnable || approvedRoute;
   const prSyncEnabled =
     truthyFlag(runtimeArgs.executePrAction || runtimeArgs['execute-pr-action']) || approvedRoute;
 

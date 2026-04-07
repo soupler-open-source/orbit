@@ -15,7 +15,12 @@
 const { execFileSync } = require('child_process');
 const path = require('path');
 const { mergeCheckpoint } = require('./checkpoint-manifest');
-const { evaluateWorkflowState, formatSummary, inferIssueFromBranch, isFeatureBranch } = require('./workflow-state');
+const {
+  evaluateWorkflowState,
+  formatSummary,
+  inferIssueFromBranch,
+  isFeatureBranch,
+} = require('./workflow-state');
 
 const ROOT = path.resolve(__dirname, '..');
 
