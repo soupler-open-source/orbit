@@ -975,6 +975,41 @@ After execution, if the input was `Mixed` or `Low confidence`, append a one-line
 
 ---
 
+# Orbit Command: /orbit:checkpoint
+
+> Explicit session save-point — write current progress to checkpoint manifest, STATE.md, and context.db before closing a terminal or switching context.
+
+## WHEN TO USE
+
+- Before closing a terminal intentionally (avoids stale-state on `/orbit:resume`)
+- After a significant step you want to preserve (review run, tests green)
+- Before a long-running operation where you want a known-good snapshot
+
+## SYNTAX
+
+```
+/orbit:checkpoint [--review-status <approved|changes_requested>]
+                  [--tests-status <passed|failed>]
+                  [--pr-status <open|merged|not_open>]
+                  [--issue <#NNN>]
+```
+
+## PROCESS
+
+1. Read current branch and HEAD SHA from git.
+2. Infer issue from branch name.
+3. Merge provided evidence into `.orbit/state/checkpoints/latest.json` under `workflow_evidence`.
+4. Run `sync-context.sh` to update `context.db` and STATE.md.
+5. Emit confirmation block.
+
+## IMPLEMENTATION
+
+```
+node bin/checkpoint.js [flags]
+```
+
+---
+
 # Orbit Command: /orbit:ask <question>
 
 > Query project state mid-session — decisions, todos, blockers, version
