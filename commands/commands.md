@@ -812,13 +812,24 @@ Diff mode: show only what changed in STATE.md since session started — new deci
    Fallback: Read `.orbit/state/STATE.md` directly if context.db absent.
    Also read `.orbit/state/pre-compact-snapshot.md` if it exists.
 2. Run `git log --oneline -5` to confirm what was last committed.
-3. Output a status summary:
+3. **Cross-reference GitHub PR state** — if the current branch is not `develop` or `main`, run:
+   ```
+   gh pr view --json state,mergedAt,number,title
+   ```
+   Use the result to determine actual ship status before emitting any output:
+   - `MERGED` → report the branch as shipped; do not flag its commits as unshipped work. Note the PR number and merge date.
+   - `OPEN` → report as in-flight with the PR link.
+   - `CLOSED` (not merged) → report as abandoned; flag for cleanup.
+   - command fails / no PR found → branch is local-only; treat commits as unshipped.
+
+   **Why this step is mandatory**: STATE.md and local git state can be stale after a terminal is closed without a checkpoint. GitHub is the authoritative source for PR merge status.
+4. Output a status summary:
    - Active milestone + phase
    - Last 5 completed tasks
    - Open todos for current milestone
    - Any blockers
 
-4. **Infer and output the Next Command block** using this decision table (first matching rule wins):
+5. **Infer and output the Next Command block** using this decision table (first matching rule wins):
 
 | STATE.md signal                                                                | Primary recommendation                             |
 | ------------------------------------------------------------------------------ | -------------------------------------------------- |
@@ -843,9 +854,9 @@ Output format (always append this block):
 - /orbit:next — let Orbit auto-detect based on full state analysis
 ```
 
-5. Continue work without requiring re-briefing.
+6. Continue work without requiring re-briefing.
 
-6. Whenever a commit, push, stop, or pre-compact event occurs, refresh `context.db` from `STATE.md` so the structured cache stays current.
+7. Whenever a commit, push, stop, or pre-compact event occurs, refresh `context.db` from `STATE.md` so the structured cache stays current.
 
 > **Tip**: Plain prompts are allowed. Orbit should infer the right workflow for tracked work. New scope still means a new Orbit task boundary, even when the user does not type the slash command explicitly.
 > If the session is mid-flight, emit the current execution block and the completion footer before continuing.
