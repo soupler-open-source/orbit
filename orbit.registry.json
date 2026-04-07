@@ -604,6 +604,14 @@
       "outputs": ["core repository PR", "registry update"]
     },
     {
+      "name": "do",
+      "command": "/orbit:do",
+      "mode": "autonomous",
+      "agents": ["engineer", "researcher", "reviewer", "strategist"],
+      "inputs": ["any plain prompt — vague or specific, Q&A or implementation"],
+      "outputs": ["classified route + direct answer OR governed implementation via /orbit:quick|plan|debug|review"]
+    },
+    {
       "name": "ask",
       "command": "/orbit:ask",
       "mode": "collaborative",
