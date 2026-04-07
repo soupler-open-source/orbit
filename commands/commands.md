@@ -774,6 +774,22 @@ Then show session token usage if available from STATE.md or context metadata.
 
 > Reload project state and continue from where we left off
 
+## SYNTAX
+
+```
+/orbit:resume [--context minimal|standard|full|decisions|blocked]
+```
+
+`--context` is optional. Default is `minimal`. Use a higher level when you need more history in the session.
+
+| Flag | Tokens | Use when |
+|------|--------|----------|
+| `--context minimal` | ~300 | Default — picking up a task, you know the project |
+| `--context standard` | ~1.5k | Need last 10 decisions — e.g. "why did we do X" |
+| `--context full` | ~3k | Architecture review, debugging a complex issue |
+| `--context decisions` | ~200 | Only the decision log — rationale audit |
+| `--context blocked` | ~100 | Only blocked tasks — triage session |
+
 ## CALL MODES
 
 **Session-start mode** (default — called at the beginning of a new session):
@@ -791,7 +807,8 @@ Diff mode: show only what changed in STATE.md since session started — new deci
 
 ## PROCESS
 
-1. If `.orbit/context.db` exists: run `node bin/context.js --load minimal` for fast partial context load (~300 tokens).
+1. Parse `--context <level>` from the command arguments. Default to `minimal` if not supplied.
+   If `.orbit/context.db` exists: run `node bin/context.js --load <level>`.
    Fallback: Read `.orbit/state/STATE.md` directly if context.db absent.
    Also read `.orbit/state/pre-compact-snapshot.md` if it exists.
 2. Run `git log --oneline -5` to confirm what was last committed.
@@ -832,6 +849,118 @@ Output format (always append this block):
 
 > **Tip**: Plain prompts are allowed. Orbit should infer the right workflow for tracked work. New scope still means a new Orbit task boundary, even when the user does not type the slash command explicitly.
 > If the session is mid-flight, emit the current execution block and the completion footer before continuing.
+
+---
+
+# Orbit Command: /orbit:do <anything>
+
+> Universal entry point — classifies any input and routes it through the correct Orbit workflow with full governance enforcement. Prevents vague prompts from bypassing branch discipline, issue tracking, and PR governance.
+
+## WHY THIS EXISTS
+
+`/orbit:quick` assumes you already have an issue number and a branch scope.
+`/orbit:ask` is read-only Q&A against project state.
+Neither handles the full spectrum of real inputs: vague bug reports, mixed Q&A + implementation requests, exploratory research, or informal language that typically bypasses governance ("just fix it", "quickly add…").
+
+`/orbit:do` is the universal intake gate. It classifies first, then routes — ensuring every write operation is tracked and every read operation is answered efficiently.
+
+## CLASSIFICATION ENGINE
+
+On every invocation, classify the input on three axes before taking any action:
+
+**Intent type**
+| Type | Signal phrases | Governance |
+|------|---------------|------------|
+| `Q&A` | "what is", "why did", "explain", "how does", "tell me" | None — answer directly |
+| `Research` | "investigate", "compare", "what's the best way", "should we" | None — dispatch researcher |
+| `Implementation` | "add", "fix", "build", "refactor", "implement", "update", "remove" | Full — branch + issue + PR |
+| `Debug` | "broken", "error", "failing", "not working", "why is X happening" | Full — route to /orbit:debug |
+| `Review` | "review", "check", "audit", "look at", "is this right" | Tracked — route to /orbit:review |
+| `Mixed` | Contains both read and write signals | Split — answer read part, gate write part |
+
+**Confidence**
+- `High` (>80%) — proceed with inferred route
+- `Medium` (50–80%) — state inferred route, proceed unless user corrects
+- `Low` (<50%) — ask ONE clarifying question, then route
+
+**Bypass signal detection**
+Informal language that historically bypasses governance: "just", "quickly", "real fast", "one liner", "tiny change", "don't worry about tracking", "skip the PR", "don't bother with a branch".
+
+Do NOT refuse or lecture. Route through governance naturally and invisibly. The user gets speed; the audit trail still exists.
+
+## PROCESS
+
+**Step 1 — Classify**
+
+Emit the classification block:
+```
+━━━ Orbit:Do ━━━━━━━━━━━━━━━━━━━━━━━━
+  Intent:     {Q&A | Research | Implementation | Debug | Review | Mixed}
+  Confidence: {High | Medium | Low}
+  Scope:      {Read-only | Local | Tracked}
+  Route:      {direct | /orbit:quick | /orbit:plan | /orbit:debug | /orbit:review | clarify}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Step 2 — Route**
+
+| Classification | Action |
+|---------------|--------|
+| Q&A, high confidence | Answer directly. Cite source (STATE.md, context.db, codebase). Done. |
+| Research, high confidence | Dispatch `researcher` agent. No branch. Suggest next command if findings warrant implementation. |
+| Implementation, high confidence, QUICK | Enforce issue exists (search open issues; create one if not found). Route to `/orbit:quick #NNN`. |
+| Implementation, high confidence, PHASE | Route to `/orbit:plan`. |
+| Debug, high confidence | Route to `/orbit:debug <issue>`. |
+| Review, high confidence | Route to `/orbit:review`. |
+| Mixed | Answer the read part first. Then: "Should I also track and implement the change? [yes/no]". If yes, re-route write part through implementation path. |
+| Low confidence | Ask ONE clarifying question. Example: "Is this a question about how X works, or do you want me to change it?" Resume after answer. |
+| Bypass signal detected | Acknowledge, route through governance silently. Do not surface the bypass detection unless the user explicitly asks to skip tracking. |
+
+**Step 3 — Execute**
+
+Follow the routed command's process spec exactly. Do not abbreviate governance steps because the input was informal.
+
+**Step 4 — Reflect**
+
+After execution, if the input was `Mixed` or `Low confidence`, append a one-line note:
+> "Classified as `{type}` — if this was wrong, use `/orbit:ask` for pure Q&A or `/orbit:quick #NNN` for a scoped task."
+
+## EDGE CASES
+
+| Situation | Handling |
+|-----------|----------|
+| "Fix the auth bug" — no issue number | Search open GitHub issues for "auth". Present top 3 matches. If none match, create a new issue first. |
+| Already on a feature branch, request scope differs | Warn: "You're on `feat/NNN-slug`. This request looks like a different scope — should I switch to a new branch?" |
+| Destructive operation detected (delete, drop, remove all) | Pause. State the blast radius. Require explicit confirmation before proceeding. |
+| "Explain how X works and then optimise it" | Sequential: explain first (Q&A), then ask before switching to implementation mode. |
+| Cross-repo request | Check if Nexus is configured. If yes, route to `/orbit:nexus`. If no, flag the limitation. |
+| Request references a closed/merged issue | Surface the closure. Ask: "Issue #NNN is closed — should I open a new one, or is this a regression?" |
+| Scope creep mid Q&A ("…actually, just change it") | Re-classify mid-conversation. Emit a new classification block. Route the write part through governance. |
+| Explicit override after governance warning ("I know, just do it") | Respect once. Log the override in sessions.log. Do not repeat the warning in the same session. |
+| No STATE.md or context.db present | Proceed with codebase-only context. Flag missing state. Suggest `/orbit:bootstrap`. |
+
+## EXAMPLES
+
+```
+/orbit:do what is blocking Wave 4?
+→ Q&A — reads context.db, answers directly
+
+/orbit:do why did we choose SQLite over a flat file for context.db?
+→ Q&A — cites rationale from DECISIONS-LOG.md verbatim
+
+/orbit:do the sentinel PII check is missing Windows paths
+→ Implementation — finds or creates issue, routes to /orbit:quick
+
+/orbit:do explain the wave architecture and then add parallel execution logging
+→ Mixed — explains first, then asks before switching to implementation
+
+/orbit:do just quickly add a --dry-run flag to the bootstrap script
+→ Bypass signal detected — routes through governance silently
+→ "On it — cutting feat/NNN-add-bootstrap-dry-run..."
+
+/orbit:do is the retry logic in sentinel correct?
+→ Review — routes to /orbit:review with the specific file scoped
+```
 
 ---
 
