@@ -65,9 +65,13 @@ function runQuick(args = {}, deps = {}) {
   let workflow = resolveWorkflow(evidence);
   let autoChain = buildQuickAutoChain(evidence, workflow, runtimeArgs);
   const approvedRoute = runtimeArgs.route === 'approved';
-  const reviewExecutionEnabled =
-    truthyFlag(runtimeArgs.executeReviewAction || runtimeArgs['execute-review-action']) ||
-    approvedRoute;
+  // Review runs by default. Pass --skip-review true only to explicitly opt out.
+  // Previously required --execute-review-action true; that flag is still accepted for backwards compatibility.
+  const explicitSkip = truthyFlag(runtimeArgs.skipReview || runtimeArgs['skip-review']);
+  const explicitEnable = truthyFlag(
+    runtimeArgs.executeReviewAction || runtimeArgs['execute-review-action']
+  );
+  const reviewExecutionEnabled = (!explicitSkip || explicitEnable) || approvedRoute;
   const prSyncEnabled =
     truthyFlag(runtimeArgs.executePrAction || runtimeArgs['execute-pr-action']) || approvedRoute;
 

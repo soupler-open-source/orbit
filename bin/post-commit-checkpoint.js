@@ -15,7 +15,7 @@
 const { execFileSync } = require('child_process');
 const path = require('path');
 const { mergeCheckpoint } = require('./checkpoint-manifest');
-const { inferIssueFromBranch, isFeatureBranch } = require('./workflow-state');
+const { evaluateWorkflowState, formatSummary, inferIssueFromBranch, isFeatureBranch } = require('./workflow-state');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -42,7 +42,7 @@ function run() {
 
   const issue = inferIssueFromBranch(branch);
 
-  mergeCheckpoint({
+  const evidence = {
     issue: issue || null,
     branch,
     headSha,
@@ -54,7 +54,15 @@ function run() {
     testEvidenceStatus: 'missing',
     shipDecisionStatus: 'unknown',
     prStatus: 'not_open',
-  });
+  };
+
+  mergeCheckpoint(evidence);
+
+  // Emit workflow gate guidance so the operator knows what to do next
+  const workflow = evaluateWorkflowState(evidence);
+  if (workflow.nextCommand && workflow.nextCommand !== '/orbit:plan 1') {
+    process.stdout.write(formatSummary(workflow) + '\n');
+  }
 }
 
 if (require.main === module) {
