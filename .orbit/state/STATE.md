@@ -9,7 +9,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 - **Active Phase**: Wave 0 → Wave 1 → Wave 1.5 → Wave 2 → Wave 3 → Wave 0.5 → Wave 4
 - **Current Focus**: Wave 0.5
 - **Current Version**: v2.8.1
-- **Current Branch**: develop
+- **Current Branch**: feat/resume-context-flag-npm-help (merged via PR #224)
 - **Active PR**: none
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
@@ -39,11 +39,11 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Recently Completed (last 5 tasks)
 ```text
-✅ #76 feat(state): add DECISIONS-LOG.md schema for temporal decision tracking
-✅ #74 feat(workflows): add /orbit:discover workflow
-✅ #75 feat(workflows): add /orbit:launch workflow
-✅ #72 feat(orchestrator): add loop detection for autonomous mode
-✅ #212 chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md
+✅ #225 fix(resume): cross-reference GitHub PR state before reporting ship status
+✅ PR #224 feat(ux): /orbit:do intake gate, orbit:resume --context flag, npm run help, vite CVE fix
+✅ PR #223 feat(docs): documentation index with audience paths and folder contracts (#214)
+✅ PR #222 chore(state): sync STATE.md — mark #67, #80, #81 closed; #79 → v3.0.0
+✅ PR #221 fix(setup): restore tracked .orbit state files from git before bootstrap
 ```
 
 ## Todos + Seeds
