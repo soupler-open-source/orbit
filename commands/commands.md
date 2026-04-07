@@ -807,12 +807,13 @@ Diff mode: show only what changed in STATE.md since session started — new deci
 
 ## PROCESS
 
-1. Parse `--context <level>` from the command arguments. Default to `minimal` if not supplied.
+1. **Read `.orbit/state/checkpoints/latest.json`** — this is the primary workflow state source. It reflects the most recent post-commit evidence and any review/verify results explicitly recorded. Extract `workflow_evidence` for use in step 4's decision table. If the file is absent, continue without it.
+2. Parse `--context <level>` from the command arguments. Default to `minimal` if not supplied.
    If `.orbit/context.db` exists: run `node bin/context.js --load <level>`.
    Fallback: Read `.orbit/state/STATE.md` directly if context.db absent.
    Also read `.orbit/state/pre-compact-snapshot.md` if it exists.
-2. Run `git log --oneline -5` to confirm what was last committed.
-3. **Cross-reference GitHub PR state** — if the current branch is not `develop` or `main`, run:
+3. Run `git log --oneline -5` to confirm what was last committed.
+4. **Cross-reference GitHub PR state** — if the current branch is not `develop` or `main`, run:
    ```
    gh pr view --json state,mergedAt,number,title
    ```
@@ -823,13 +824,14 @@ Diff mode: show only what changed in STATE.md since session started — new deci
    - command fails / no PR found → branch is local-only; treat commits as unshipped.
 
    **Why this step is mandatory**: STATE.md and local git state can be stale after a terminal is closed without a checkpoint. GitHub is the authoritative source for PR merge status.
-4. Output a status summary:
+5. Output a status summary:
    - Active milestone + phase
-   - Last 5 completed tasks
+   - Last 5 completed tasks (use checkpoint `workflow_evidence` to correct any stale STATE.md entries)
    - Open todos for current milestone
    - Any blockers
 
-5. **Infer and output the Next Command block** using this decision table (first matching rule wins):
+6. **Infer and output the Next Command block** using this decision table (first matching rule wins):
+   When `checkpoints/latest.json` is present, use `workflow_evidence` to refine the recommendation — checkpoint state takes priority over STATE.md signals for the active branch.
 
 | STATE.md signal                                                                | Primary recommendation                             |
 | ------------------------------------------------------------------------------ | -------------------------------------------------- |
@@ -854,9 +856,9 @@ Output format (always append this block):
 - /orbit:next — let Orbit auto-detect based on full state analysis
 ```
 
-6. Continue work without requiring re-briefing.
+7. Continue work without requiring re-briefing.
 
-7. Whenever a commit, push, stop, or pre-compact event occurs, refresh `context.db` from `STATE.md` so the structured cache stays current.
+8. Whenever a commit, push, stop, or pre-compact event occurs, refresh `context.db` from `STATE.md` so the structured cache stays current.
 
 > **Tip**: Plain prompts are allowed. Orbit should infer the right workflow for tracked work. New scope still means a new Orbit task boundary, even when the user does not type the slash command explicitly.
 > If the session is mid-flight, emit the current execution block and the completion footer before continuing.
