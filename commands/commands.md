@@ -774,6 +774,22 @@ Then show session token usage if available from STATE.md or context metadata.
 
 > Reload project state and continue from where we left off
 
+## SYNTAX
+
+```
+/orbit:resume [--context minimal|standard|full|decisions|blocked]
+```
+
+`--context` is optional. Default is `minimal`. Use a higher level when you need more history in the session.
+
+| Flag | Tokens | Use when |
+|------|--------|----------|
+| `--context minimal` | ~300 | Default — picking up a task, you know the project |
+| `--context standard` | ~1.5k | Need last 10 decisions — e.g. "why did we do X" |
+| `--context full` | ~3k | Architecture review, debugging a complex issue |
+| `--context decisions` | ~200 | Only the decision log — rationale audit |
+| `--context blocked` | ~100 | Only blocked tasks — triage session |
+
 ## CALL MODES
 
 **Session-start mode** (default — called at the beginning of a new session):
@@ -791,7 +807,8 @@ Diff mode: show only what changed in STATE.md since session started — new deci
 
 ## PROCESS
 
-1. If `.orbit/context.db` exists: run `node bin/context.js --load minimal` for fast partial context load (~300 tokens).
+1. Parse `--context <level>` from the command arguments. Default to `minimal` if not supplied.
+   If `.orbit/context.db` exists: run `node bin/context.js --load <level>`.
    Fallback: Read `.orbit/state/STATE.md` directly if context.db absent.
    Also read `.orbit/state/pre-compact-snapshot.md` if it exists.
 2. Run `git log --oneline -5` to confirm what was last committed.

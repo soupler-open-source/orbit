@@ -10,6 +10,7 @@
     "registry": "https://npm.pkg.github.com/"
   },
   "scripts": {
+    "help": "node bin/help.js",
     "setup": "bash bin/setup.sh",
     "context": "node bin/context.js",
     "bootstrap": "node bin/bootstrap.js",
