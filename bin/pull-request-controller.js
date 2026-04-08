@@ -186,7 +186,7 @@ function buildPullRequestBody({
     ...summaryLines.map((line) => `- ${line}`),
     '',
     '## Issues',
-    `- Relates to ${issue}`,
+    `- Closes ${issue}`,
     '',
     '## Ship Decision',
     `- Review: \`${reviewCommand}\``,
