@@ -10,7 +10,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 - **Current Focus**: Wave 0.5
 - **Current Version**: v2.8.1
 - **Current Branch**: feat/215-docs-naming-gate
-- **Active PR**: opening
+- **Active PR**: #230 (feat/215-docs-naming-gate)
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
 
@@ -40,7 +40,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Recently Completed (last 5 tasks)
 ```text
-🔄 #215 feat(ci): docs artifact naming gate — bin/validate-doc-naming.js + Sentinel job (PR in flight)
+🔄 #215 feat(ci): docs artifact naming gate — bin/validate-doc-naming.js + Sentinel job (PR #230)
 ✅ #227 feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3+5 (PRs #228 + #229 merged)
 ✅ #214 feat(docs): documentation index with reading order and folder contracts (PR #223 merged)
 ✅ PR #224 feat(ux): /orbit:do intake gate, orbit:resume --context flag, npm run help, vite CVE fix
