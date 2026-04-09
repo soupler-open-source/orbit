@@ -9,8 +9,8 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 - **Active Phase**: Wave 0 → Wave 1 → Wave 1.5 → Wave 2 → Wave 3 → Wave 0.5 → Wave 4
 - **Current Focus**: Wave 0.5
 - **Current Version**: v2.8.1
-- **Current Branch**: feat/215-docs-naming-gate
-- **Active PR**: #230 (feat/215-docs-naming-gate)
+- **Current Branch**: develop (feat/215-docs-naming-gate merged via PR #230)
+- **Active PR**: none (PR #230 merged 2026-04-08)
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
 
@@ -23,8 +23,8 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 | 1.5 | Productization Layer | 🔄 in progress | GTM and specialist-skill follow-through still have open board items. |
 | 2 | Safety + Workflow Primitives | ✅ shipped | Clarification gate, loop detection, launch/discover workflows, and decisions log are landed. |
 | 3 | Structure + Registry Discipline | 🔄 in progress | Repo cleanup landed; registry consolidation is still open. |
-| 0.5 | Foundation Hardening | 🔄 in progress | Prerequisite to Wave 4. Event-sourced state ✅, docs index, naming enforcement, plan relocation ✅. |
-| 4 | Ship + Positioning | ⏳ blocked on Wave 0.5 | 7 audit-sourced issues (#205–#211) + #79, #81. Cannot start until Wave 0.5 complete. |
+| 0.5 | Foundation Hardening | ✅ shipped | All items complete: event-sourced state, docs index, naming enforcement, plan relocation, enforcement runtime, resume fix. |
+| 4 | Ship + Positioning | 🔄 in progress | Wave 0.5 cleared. Open: #206, #207, #208, #211. #79 → v3.0.0, #81 ✅. |
 
 ## Decision Ledger
 See `.orbit/state/DECISIONS-LOG.md` for the additive decision history.
@@ -33,14 +33,13 @@ Use this file to summarize the current release surface, not to duplicate the ful
 ## Blockers
 ```text
 [OPEN] B-001 — PR #190 — strict top-level Orbit command dispatch enforcement still in flight
-[OPEN] B-002 — Wave 4 BLOCKED on Wave 0.5 Foundation Hardening (#212, #213, #214, #215)
-[OPEN] B-003 — Wave 4 CI hardening (#79) additionally blocked on test suite green (#205)
-[RESOLVE B-002 pending] — #215 PR in flight; once merged Wave 0.5 complete → Wave 4 unblocked
+[RESOLVED] B-002 — Wave 4 unblocked: PR #230 merged 2026-04-08, Wave 0.5 complete
+[RESOLVED] B-003 — #205 shipped; #79 reassigned to v3.0.0 (not blocking v2.9.0 Wave 4)
 ```
 
 ## Recently Completed (last 5 tasks)
 ```text
-🔄 #215 feat(ci): docs artifact naming gate — bin/validate-doc-naming.js + Sentinel job (PR #230)
+✅ #215 feat(ci): docs artifact naming gate — bin/validate-doc-naming.js + Sentinel job (PR #230 merged 2026-04-08)
 ✅ #227 feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3+5 (PRs #228 + #229 merged)
 ✅ #214 feat(docs): documentation index with reading order and folder contracts (PR #223 merged)
 ✅ PR #224 feat(ux): /orbit:do intake gate, orbit:resume --context flag, npm run help, vite CVE fix
@@ -83,7 +82,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [x] #212 — chore(plans): move PHASE-4-PLAN.md to docs/plans/ and rename per artifact-conventions.md
 - [x] #213 — feat(state): implement event-sourced state model — typed event log + STATE.md as materialized view
 - [x] #214 — feat(docs): create documentation index with reading order and folder contracts
-- [~] #215 — feat(ci): add docs artifact naming gate to Sentinel — enforce artifact-conventions.md at commit time (PR in flight)
+- [x] #215 — feat(ci): add docs artifact naming gate to Sentinel — enforce artifact-conventions.md at commit time (PR #230 merged 2026-04-08)
 - [x] #225 — fix(resume): cross-reference GitHub PR state before reporting ship status (PR #226 merged)
 - [x] #227 — feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3 + 5 (PRs #228 + #229 merged)
 

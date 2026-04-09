@@ -25,6 +25,7 @@ Raw JS errors (`throw new Error('Could not acquire lock')`) are not searchable, 
 | `ERR-ORBIT-004` | No agent in registry matched the task at ≥60% threshold — Agent Forge required | `bin/orchestrator.js` |
 | `ERR-ORBIT-005` | Pre-tool-use safety gate blocked the action — prompt injection or policy violation detected | `hooks/scripts/pre-tool-use.sh` |
 | `ERR-ORBIT-006` | Registry or config validation failed — structural inconsistency detected | `bin/validate-config.sh`, `bin/orchestrator.js` |
+| `ERR-ORBIT-007` | Config schema validation failed — `orbit.config.json` violates `orbit.config.schema.json` | `bin/orchestrator.js` (issue #206) |
 
 ## Format
 
@@ -65,3 +66,11 @@ Run `bash bin/validate-config.sh` locally to see the full finding. Common causes
 - Hardcoded model ID in `agents/` or `skills/` (use semantic aliases from `orbit.config.json → models.routing`)
 - `orbit.config.json` contains a `version` field (remove it — `package.json` is the single source)
 - `package.json` license is not `Apache-2.0`
+
+### ERR-ORBIT-007 — Config schema validation failed
+`orbit.config.json` has a field that violates `orbit.config.schema.json`. Common causes:
+- Wrong type on `security.*` fields (must be boolean, not string)
+- Invalid model ID format in `models.routing`
+- Extra fields not permitted by `additionalProperties: false`
+
+Fix: compare your config against the schema, correct the offending value, and restart.
