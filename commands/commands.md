@@ -306,7 +306,8 @@ Load `skills/deployment.md`. Requires PHASE-{N}-UAT.md to exist and pass.
    - `CHANGELOG.md` entry updates
    - `README.md` / user-facing documentation updates when behavior changed
    - release-note wording that explains the shipped phase clearly
-4. Create PR using the controller — never bare `gh pr create`:
+4. Ensure all commits are done (CHANGELOG, README, any doc updates) **before** invoking the PR controller. The controller captures HEAD at invocation time; any commit pushed after will make the embedded `Head SHA` stale and fail CI.
+5. Create PR using the controller — never bare `gh pr create`:
    ```
    node bin/pull-request-controller.js \
      --issue "#N" \
@@ -316,11 +317,11 @@ Load `skills/deployment.md`. Requires PHASE-{N}-UAT.md to exist and pass.
    ```
    The controller builds the body from the validated template, pre-validates all
    governance rules (required headings, test-plan format, residual-risk labels,
-   Head SHA freshness), and only calls `gh pr create` if validation passes.
+   Head SHA freshness), and only calls `gh pr create` or `gh pr edit` if validation passes.
    Bare `gh pr create --body "..."` bypasses all governance and is forbidden.
-5. If approved: deploy to staging → run smoke tests → deploy to prod
-6. Tag release: `v{milestone}.{phase}`
-7. Update STATE.md: phase marked shipped
+6. If approved: deploy to staging → run smoke tests → deploy to prod
+7. Tag release: `v{milestone}.{phase}`
+8. Update STATE.md: phase marked shipped
 8. Output: deployment summary + next phase hint
 
 **After completion, emit:**
@@ -492,8 +493,9 @@ If the user gives a plain prompt that implies a tracked implementation task, Orb
    </task>
    ```
 4. Execute with relevant skill loaded
-5. Verify, commit, update STATE.md, and write the checkpoint manifest to `.orbit/state/checkpoints/latest.json`
-6. If the task is review-ready, push the branch and open/refresh the PR using the controller CLI — never bare `gh pr create`:
+5. Verify and commit the implementation atomically. Then commit the STATE.md sync as a **separate** follow-up commit immediately after. Both commits must land before the PR controller is invoked — the controller captures HEAD at invocation time and embeds it as the `Head SHA` freshness marker; any commit pushed after that will invalidate it in CI.
+6. Write the checkpoint manifest: `node bin/checkpoint.js --review-status approved --tests-status passed --issue "#N"`
+7. If the task is review-ready, push the branch and open/refresh the PR using the controller CLI — never bare `gh pr create`. Run this as the **last step**, after all commits including STATE.md sync are pushed:
    ```
    node bin/pull-request-controller.js \
      --issue "#N" --branch "<branch>" --title "<title>" \
@@ -501,9 +503,9 @@ If the user gives a plain prompt that implies a tracked implementation task, Orb
    ```
    The controller builds the body from the validated template, enforces required headings,
    test-plan command format (`` - `cmd` `` only), residual-risk single-line labels, and
-   Head SHA freshness — then calls `gh pr create` only if all checks pass. If validation
-   fails, fix the inputs and retry; do not bypass with bare `gh pr create`.
-7. Before requesting review or ship progression, refresh the PR body evidence:
+   Head SHA freshness — then calls `gh pr create` or `gh pr edit` only if all checks pass.
+   If validation fails, fix the inputs and retry; do not bypass with bare `gh pr create`.
+8. Before requesting review or ship progression, refresh the PR body evidence:
    - `## Test plan` lists the commands actually run
    - `Orbit Self-Review` records the review command, dispatched agents, ship decision, and findings handled
    - PR sync must stop locally if governance or docs-update validation fails; do not mutate GitHub until the generated body passes both checks
