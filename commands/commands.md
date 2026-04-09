@@ -1,3 +1,12 @@
+# Orbit Commands — Human-Readable Reference
+
+> **Runtime source**: per-command specs live in `commands/orbit/specs/` and are installed to
+> `.claude/commands/orbit/specs/` at install time. Each command entry point loads only its own
+> spec (~1-2k tokens) instead of this full file (~12k tokens). Update both this file and the
+> matching `commands/orbit/specs/<command>.md` when changing a command spec.
+
+---
+
 # STATE.md Update Protocol
 
 > Standing rule — applies to every Orbit command, every session
