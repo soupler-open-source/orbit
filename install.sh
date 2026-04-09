@@ -114,14 +114,15 @@ install_for_claude() {
     "$CLAUDE_DIR/orbit/hooks"
 
   # ── Orchestrator (generated from template at install time) ────────────────
-  # Written to .claude/CLAUDE.md (Claude Code's project-level instructions)
-  # Also written to the project root so Claude Code auto-detects it on open.
-  # Both are gitignored — this file is always generated, never committed.
+  # Written only to .claude/CLAUDE.md — Claude Code loads this as the project
+  # instruction file. The project root copy was eliminated (#236) because
+  # Claude Code loads both .claude/CLAUDE.md and CLAUDE.md, causing the same
+  # ~4,100 tokens to be paid twice on every turn.
   qrun node "$FRAMEWORK_DIR/bin/generate-instructions.js" \
     --runtime claude --output "$CLAUDE_DIR/CLAUDE.md"
-  qrun node "$FRAMEWORK_DIR/bin/generate-instructions.js" \
-    --runtime claude --output "$PROJECT_DIR/CLAUDE.md"
-  qecho "  ✓ CLAUDE.md (generated for Claude runtime → .claude/ + project root)"
+  # Remove any stale root copy left from before this change.
+  [[ -f "$PROJECT_DIR/CLAUDE.md" ]] && rm -f "$PROJECT_DIR/CLAUDE.md"
+  qecho "  ✓ CLAUDE.md (generated for Claude runtime → .claude/ only)"
 
   # ── Human-view files (generated from registry + templates at install time) ─
   qrun node "$FRAMEWORK_DIR/bin/generate-instructions.js" --human-views
