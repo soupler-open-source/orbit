@@ -10,7 +10,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 - **Current Focus**: Wave 4
 - **Current Version**: v2.8.1
 - **Current Branch**: feat/232-token-cost-tracking
-- **Active PR**: not opened yet
+- **Active PR**: #233 (feat/232-token-cost-tracking)
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
 
@@ -39,7 +39,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Recently Completed (last 5 tasks)
 ```text
-🔄 #232 feat(cost): split commands.md into per-command specs + token tracking — PR pending
+🔄 #232 feat(cost): split commands.md into per-command specs + token tracking — PR #233 open
 ✅ #206 feat(security): orbit.config.json schema validation at startup — PR #231 merged 2026-04-09
 ✅ #215 feat(ci): docs artifact naming gate — bin/validate-doc-naming.js + Sentinel job (PR #230 merged 2026-04-08)
 ✅ #227 feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3+5 (PRs #228 + #229 merged)
