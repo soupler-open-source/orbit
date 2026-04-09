@@ -292,70 +292,10 @@ Use git worktrees for parallel wave execution: `skills/git-worktree.md`
 
 ## CONTEXT PRESERVATION
 
-**Before any session ends or context compacts:**
-
-1. Write STATE.md with current progress
-2. Commit all in-progress work
-3. Write `.orbit/state/pre-compact-snapshot.md` with resume instructions
-
-**PreCompact hook fires automatically** (configured in `.claude/settings.json`).
-
-**To resume:** Run `/orbit:resume` — loads `context.db` first when present, falls back to STATE.md + snapshot, checks git log, continues.
+PreCompact hook auto-fires. Run `/orbit:resume` to recover any session.
 
 ---
 
 ## AGENT FORGE PROTOCOL
 
-When no agent fits >60%:
-
-1. Load `agents/forge.md`
-2. Forge analyzes required domain knowledge
-3. Defines agent: name, role, triggers, skills, constraints, examples
-4. Writes to `agents/{name}.md`
-5. Registers in this `{{INSTRUCTION_FILE}}`
-6. Dispatches task to new agent
-7. Agent persists for all future project tasks
-8. **Promotion**: If the forged agent is a generalizable "Pillar of Standardization," tag with `promotion_candidate: true` and run `/orbit:promote`.
-
----
-
-## CORE PHILOSOPHY
-
-- Systematic over ad-hoc
-- Parallel over sequential
-- Fresh context over accumulated rot
-- Evidence over claims — verify before declaring done
-- Atomic commits — every task traceable
-- YAGNI + DRY
-- TDD always — tests before implementation
-
----
-
-## SLASH COMMANDS
-
-```
-/orbit:help            — all commands
-/orbit:discover       — validate problem/user before planning
-/orbit:new-project     — initialize from scratch
-/orbit:plan [N]        — research + spec + task plan for phase N
-/orbit:build [N]       — parallel wave execution
-/orbit:verify [N]      — test + UAT + review
-/orbit:ship [N]        — PR + deploy + release
-/orbit:launch          — post-ship launch planning + announcement drafting
-/orbit:next            — auto-detect next step
-/orbit:quick <task>    — ad-hoc, no full planning
-/orbit:forge <desc>    — build a specialized agent
-/orbit:review          — code/arch review
-/orbit:audit           — security + quality audit (security-engineer agent)
-/orbit:monitor         — observability + health
-/orbit:progress        — current status
-/orbit:resume          — reload context.db/STATE.md, continue after compaction
-/orbit:debug <issue>   — systematic 4-phase debug
-/orbit:map-codebase    — analyze repo before planning
-/orbit:deploy <env>    — deploy to environment
-/orbit:rollback        — revert last deployment
-/orbit:riper <task>    — structured RIPER thinking mode
-/orbit:worktree        — manage git worktrees for parallel execution
-/orbit:cost            — show token usage and estimated cost
-/orbit:promote         — propagate local patterns/agents to the Orbit Core
-```
+When no agent fits >60%: load `agents/forge.md`, define the agent (name/role/triggers/skills), write to `agents/{name}.md`, register in `{{INSTRUCTION_FILE}}`, dispatch. Tag `promotion_candidate: true` and run `/orbit:promote` if generalizable.
