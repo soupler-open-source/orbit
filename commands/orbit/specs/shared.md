@@ -95,6 +95,33 @@ Appended at the end of completed commands so the user has a concrete next step.
 - {alt 2}
 ```
 
+### Token usage footer
+
+**Mandatory. Appended at the end of every command, after the completion footer.**
+
+At command completion, Claude must:
+
+1. Estimate token usage for this command:
+   - **Input**: sum of (bytes of every file read this command / 4) + system context floor (~15,000 tokens)
+   - **Output**: total chars written in this response / 4
+2. Log the entry:
+   ```
+   node bin/token-log.js --command /orbit:<name> --tokens-input N --tokens-output N
+   ```
+3. Append this block to the response:
+
+```
+---
+⬡ Token Usage  /orbit:<name>
+  Input:  ~N tokens
+  Output: ~N tokens
+  Total:  ~N tokens
+```
+
+**Exceptions** (skip the log step, still show the block with estimated values):
+- `bin/token-log.js` itself cannot be run (file missing, node not available) — show the block with `(not logged)` suffix
+- `/orbit:cost` — already surfaces the token log; no duplicate entry needed
+
 ## Review residual rule
 
 When `/orbit:review` ends with residual risks, Orbit must classify each one explicitly:

@@ -9,6 +9,7 @@
  * Usage:
  *   node bin/token-log.js --command /orbit:resume --tokens-input 21000 --tokens-output 2500
  *   node bin/token-log.js --summary
+ *   node bin/token-log.js --last
  */
 
 'use strict';
@@ -96,6 +97,19 @@ function printSummary() {
   );
 }
 
+function printLast() {
+  const entries = readEntries();
+  if (entries.length === 0) {
+    process.stdout.write('No token log entries yet.\n');
+    return;
+  }
+  const e = entries[entries.length - 1];
+  const ts = e.ts ? e.ts.slice(0, 19).replace('T', ' ') : 'unknown';
+  process.stdout.write(
+    `  ${ts}  ${String(e.command).padEnd(22)}  in: ${String(e.tokens_input).padStart(6)}  out: ${String(e.tokens_output).padStart(5)}  total: ${String(e.tokens_total).padStart(6)}\n`
+  );
+}
+
 function run(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
 
@@ -104,11 +118,17 @@ function run(argv = process.argv.slice(2)) {
     return;
   }
 
+  if (args.last) {
+    printLast();
+    return;
+  }
+
   if (!args['tokens-input'] && !args['tokens-output']) {
     process.stderr.write(
       'Usage: node bin/token-log.js --command <cmd> --tokens-input N --tokens-output N\n'
     );
     process.stderr.write('       node bin/token-log.js --summary\n');
+    process.stderr.write('       node bin/token-log.js --last\n');
     process.exit(1);
   }
 
@@ -129,4 +149,4 @@ if (require.main === module) {
   run();
 }
 
-module.exports = { appendEntry, readEntries, printSummary };
+module.exports = { appendEntry, readEntries, printSummary, printLast };
