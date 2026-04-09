@@ -90,9 +90,7 @@ function printSummary() {
       `  ${ts}  ${String(e.command).padEnd(22)}  in: ${String(e.tokens_input).padStart(6)}  out: ${String(e.tokens_output).padStart(5)}  total: ${String(e.tokens_total).padStart(6)}\n`
     );
   }
-  process.stdout.write(
-    '─────────────────────────────────────────────────────\n'
-  );
+  process.stdout.write('─────────────────────────────────────────────────────\n');
   process.stdout.write(
     `  Session total:  in: ${totalIn}  out: ${totalOut}  combined: ${totalIn + totalOut} tokens\n`
   );
