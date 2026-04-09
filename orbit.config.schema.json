@@ -134,7 +134,7 @@
         "prompt_injection_detection": { "type": "boolean" },
         "secret_scan_on_commit": { "type": "boolean" },
         "destructive_command_guard": { "type": "boolean" },
-        "identity_separation": { "type": "boolean" }
+        "identity_separation": { "type": "boolean", "default": true }
       }
     },
     "loop_detection": {

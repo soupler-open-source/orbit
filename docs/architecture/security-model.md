@@ -101,7 +101,17 @@ See `skills/prompt-safety.md` for the full detection ruleset.
 
 ---
 
-## 5. Responsible Disclosure
+## 5. Identity Separation
+
+`identity_separation` controls whether Orbit enforces multi-identity boundaries across agent roles — preventing an agent operating in one role from reading or writing context scoped to a different role.
+
+> **As of v2.9.0, `identity_separation` defaults to `true`.** This ensures multi-identity enforcement is active in team and enterprise contexts out of the box.
+>
+> Single-user or local development environments may opt out by setting `"identity_separation": false` in `orbit.config.json`. This disables cross-role context boundary enforcement.
+
+---
+
+## 6. Responsible Disclosure
 
 If you discover a vulnerability in Orbit, please **do not open a public GitHub issue**. Use GitHub Private Vulnerability Reporting:
 
