@@ -7,10 +7,10 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 ## Project Context
 - **Active Milestone**: v2.9.0 — Idea to Market (self-orchestrated by Orbit)
 - **Active Phase**: Wave 0 → Wave 1 → Wave 1.5 → Wave 2 → Wave 3 → Wave 0.5 → Wave 4
-- **Current Focus**: Wave 0.5
+- **Current Focus**: Wave 4
 - **Current Version**: v2.8.1
-- **Current Branch**: develop (feat/215-docs-naming-gate merged via PR #230)
-- **Active PR**: none (PR #230 merged 2026-04-08)
+- **Current Branch**: feat/206-config-schema-validation
+- **Active PR**: #231 (feat/206-config-schema-validation)
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
 
@@ -39,11 +39,11 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Recently Completed (last 5 tasks)
 ```text
+🔄 #206 feat(security): orbit.config.json schema validation at startup — PR #231 open
 ✅ #215 feat(ci): docs artifact naming gate — bin/validate-doc-naming.js + Sentinel job (PR #230 merged 2026-04-08)
 ✅ #227 feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3+5 (PRs #228 + #229 merged)
 ✅ #214 feat(docs): documentation index with reading order and folder contracts (PR #223 merged)
 ✅ PR #224 feat(ux): /orbit:do intake gate, orbit:resume --context flag, npm run help, vite CVE fix
-✅ PR #222 chore(state): sync STATE.md — mark #67, #80, #81 closed; #79 → v3.0.0
 ```
 
 ## Todos + Seeds
@@ -86,9 +86,9 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [x] #225 — fix(resume): cross-reference GitHub PR state before reporting ship status (PR #226 merged)
 - [x] #227 — feat(enforcement): wire Orbit self-enforcement runtime — Waves 1–3 + 5 (PRs #228 + #229 merged)
 
-#### Wave 4 — Ship + Positioning (Audit-Expanded — BLOCKED on Wave 0.5)
+#### Wave 4 — Ship + Positioning (Audit-Expanded — CURRENT)
 - [x] #205 — fix(tests): resolve 2 failing command-runtime assertions — PR isolation + branch-mismatch format
-- [ ] #206 — feat(security): enforce orbit.config.json schema validation at orchestrator startup
+- [~] #206 — feat(security): enforce orbit.config.json schema validation at orchestrator startup (PR #231 open)
 - [ ] #207 — fix(security): flip identity_separation default to true
 - [ ] #208 — feat(test): expand vitest coverage surface to safety-evaluator and prompt-dispatch
 - [ ] #211 — fix(ci): add Windows C:\Users\ path pattern to Sentinel PII scan
