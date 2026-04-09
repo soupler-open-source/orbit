@@ -107,6 +107,7 @@ install_for_claude() {
   # Core directories
   mkdir -p \
     "$CLAUDE_DIR/commands/orbit" \
+    "$CLAUDE_DIR/commands/orbit/specs" \
     "$CLAUDE_DIR/agents" \
     "$CLAUDE_DIR/skills" \
     "$CLAUDE_DIR/state" \
@@ -162,14 +163,26 @@ install_for_claude() {
   qecho "  ✓ skills/ ($(ls "$FRAMEWORK_DIR/skills/"*.md | wc -l | tr -d ' ') files)"
 
   # ── Commands ──────────────────────────────────────────────────────────────
+  # commands.md is kept as the human-readable reference. Per-command specs are
+  # the runtime-loaded source — each entry point loads only its own spec file
+  # (~1-2k tokens) instead of the full monolith (~12k tokens).
   cp "$FRAMEWORK_DIR/commands/commands.md" "$CLAUDE_DIR/commands/orbit/commands.md"
   qecho "  ✓ commands/orbit/commands.md"
 
-  # Generate individual command files
+  # Install per-command spec files (runtime token cost reduction)
+  if [[ -d "$FRAMEWORK_DIR/commands/orbit/specs" ]]; then
+    for f in "$FRAMEWORK_DIR"/commands/orbit/specs/*.md; do
+      name=$(basename "$f")
+      cp "$f" "$CLAUDE_DIR/commands/orbit/specs/$name"
+    done
+    qecho "  ✓ commands/orbit/specs/ ($(ls "$FRAMEWORK_DIR/commands/orbit/specs/"*.md | wc -l | tr -d ' ') spec files)"
+  fi
+
+  # Generate individual command entry points — each loads only its own spec
   local commands=(
     new-project plan build verify ship next quick forge review audit
     monitor debug map-codebase progress resume deploy rollback
-    riper worktree cost ask
+    riper worktree cost ask discover launch
   )
   for cmd in "${commands[@]}"; do
     cat > "$CLAUDE_DIR/commands/orbit/${cmd}.md" << CMDEOF
@@ -178,7 +191,8 @@ description: "Orbit /orbit:${cmd} — AI agent orchestration"
 allowed-tools: all
 ---
 Read \$CLAUDE_DIR/CLAUDE.md to load Orbit context.
-Read \$CLAUDE_DIR/commands/orbit/commands.md for this command's exact process specification.
+Read \$CLAUDE_DIR/commands/orbit/specs/shared.md for runtime contracts and output block formats.
+Read \$CLAUDE_DIR/commands/orbit/specs/${cmd}.md for this command's exact process specification.
 If STATE.md exists at .orbit/state/STATE.md, read it for project context.
 If DECISIONS-LOG.md exists at .orbit/state/DECISIONS-LOG.md, append durable decision history there.
 Execute: /orbit:${cmd} \$ARGUMENTS — follow the exact process defined, no shortcuts.
