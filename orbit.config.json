@@ -75,7 +75,7 @@
     "prompt_injection_detection": true,
     "secret_scan_on_commit": true,
     "destructive_command_guard": true,
-    "identity_separation": false
+    "identity_separation": true
   },
   "loop_detection": {
     "enabled": true,
