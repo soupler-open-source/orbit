@@ -22,6 +22,12 @@ Diff mode: show only what changed in STATE.md since session started — new deci
 1. If `.orbit/context.db` exists: run `node bin/context.js --load minimal` for fast partial context load (~300 tokens).
    Fallback: Read `.orbit/state/STATE.md` directly if context.db absent.
    Also read `.orbit/state/pre-compact-snapshot.md` if it exists.
+1a. Run `node bin/token-log.js --last` to surface the last logged command's token usage.
+    Display it at the top of the resume output as:
+    ```
+    Last session:  {command}  in: {N}  out: {N}  total: {N} tokens
+    ```
+    If no entries exist, skip this line silently.
 2. Run `git log --oneline -5` to confirm what was last committed.
 3. **Cross-reference GitHub PR state** — if the current branch is not `develop` or `main`, run:
    ```
