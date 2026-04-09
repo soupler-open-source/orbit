@@ -144,10 +144,13 @@ describe('OrbitOrchestrator — state lock', () => {
     orch.acquireStateLock();
     orch.releaseStateLock();
 
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('local .orbit.lock directory')
+    // The mutex warning must appear exactly once (not repeated per acquire call).
+    // Filter by content so the schema-absent WARN-ORBIT from validateConfig
+    // does not affect this count.
+    const mutexWarnings = warnSpy.mock.calls.filter(([msg]) =>
+      msg.includes('local .orbit.lock directory')
     );
+    expect(mutexWarnings).toHaveLength(1);
 
     warnSpy.mockRestore();
     delete process.env.CI;
@@ -508,5 +511,48 @@ describe('OrbitOrchestrator — aggregateResults', () => {
 
     const result = orch.aggregateResults('wave003');
     expect(result).toContain('✅ CONSENSUS MET');
+  });
+});
+
+describe('OrbitOrchestrator — validateConfig', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'orbit-schema-'));
+    buildFixtureRoot(tmpDir);
+    // Copy real schema into fixture root so validateConfig can find it
+    const realSchema = path.join(path.resolve(__dirname, '..'), 'orbit.config.schema.json');
+    fs.copyFileSync(realSchema, path.join(tmpDir, 'orbit.config.schema.json'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('throws ERR-ORBIT-007 when config has a wrong-type security field', () => {
+    const configPath = path.join(tmpDir, 'orbit.config.json');
+    // Read the real orbit.config.json as a valid base, then corrupt one field
+    const realConfig = JSON.parse(
+      fs.readFileSync(path.join(path.resolve(__dirname, '..'), 'orbit.config.json'), 'utf8')
+    );
+    realConfig.security.prompt_injection_detection = 'yes'; // wrong type: should be boolean
+    fs.writeFileSync(configPath, JSON.stringify(realConfig));
+
+    expect(() => new OrbitOrchestrator(tmpDir)).toThrow('ERR-ORBIT-007');
+  });
+
+  it('emits WARN-ORBIT and does not throw when schema file is absent', () => {
+    // Remove the schema we copied in beforeEach
+    fs.unlinkSync(path.join(tmpDir, 'orbit.config.schema.json'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(() => new OrbitOrchestrator(tmpDir)).not.toThrow();
+
+    const schemaWarnings = warnSpy.mock.calls.filter(([msg]) =>
+      msg.includes('orbit.config.schema.json not found')
+    );
+    expect(schemaWarnings).toHaveLength(1);
+
+    warnSpy.mockRestore();
   });
 });

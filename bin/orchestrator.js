@@ -32,15 +32,38 @@ class OrbitOrchestrator {
     this.stateFile = path.join(this.stateDir, 'STATE.md');
 
     this.registry = JSON.parse(fs.readFileSync(this.registryPath, 'utf8'));
-    this.config = fs.existsSync(this.configPath)
-      ? JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
-      : { models: { routing: 'auto' }, git: { worktree_per_task: false } };
+    if (fs.existsSync(this.configPath)) {
+      const rawConfig = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+      this.validateConfig(rawConfig);
+      this.config = rawConfig;
+    } else {
+      this.config = { models: { routing: 'auto' }, git: { worktree_per_task: false } };
+    }
 
     // Nexus Consciousness (Task 2.3)
     this.nexusPath = path.join(projectRoot, 'orbit.nexus.json');
     this.isNexus = fs.existsSync(this.nexusPath);
     this.nexus = this.isNexus ? JSON.parse(fs.readFileSync(this.nexusPath, 'utf8')) : null;
     this.hasWarnedDistributedMutex = false;
+  }
+
+  validateConfig(config) {
+    const schemaPath = path.join(this.projectRoot, 'orbit.config.schema.json');
+    if (!fs.existsSync(schemaPath)) {
+      console.warn('[WARN-ORBIT] orbit.config.schema.json not found — skipping validation');
+      return;
+    }
+    const Ajv = require('ajv/dist/2020');
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    const ajv = new Ajv({ allErrors: true });
+    const validate = ajv.compile(schema);
+    if (!validate(config)) {
+      const details = ajv.errorsText(validate.errors, { separator: '\n  ' });
+      throw new Error(
+        `[ERR-ORBIT-007] orbit.config.json failed schema validation:\n  ${details}\n` +
+          `  Fix orbit.config.json and restart.`
+      );
+    }
   }
 
   shouldWarnDistributedMutex() {
