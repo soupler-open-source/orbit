@@ -108,11 +108,12 @@ jobs:
         run: npm run lint
       - name: 🎨 Prettier format check
         run: npm run format:check
-      - name: 🚫 PII scan
+      - name: 🔍 PII scan — reject hardcoded user paths (macOS + Windows)
         run: |
-          if git grep -r "/Users/" -- '*.json' '*.sh' '*.js' '*.ts' \
+          if git grep -rE '(/Users/[A-Za-z0-9_.-]+|C:\\Users\\[A-Za-z0-9_.-]+|C:/Users/[A-Za-z0-9_.-]+)' \
+            -- '*.json' '*.sh' '*.js' '*.ts' \
             ':(exclude).github/workflows/orbit-sentinel.yml'; then
-            echo "❌ Hardcoded local paths detected — remove before merging"
+            echo "❌ Hardcoded local user path detected — remove before merging"
             exit 1
           fi
 
