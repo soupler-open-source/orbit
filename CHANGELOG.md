@@ -4,6 +4,44 @@ All notable changes to the Orbit framework will be documented in this file. The 
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-04-10 (in progress)
+
+### Added
+
+- **Token usage footer**: Every Orbit command now appends a `⬡ Token Usage` block estimating input/output/total tokens for the session. Logged via `bin/token-log.js` with `--last` flag for surface on resume. (#232, #234, PR #233, #235)
+- **Per-command spec files**: `commands/orbit/specs/*.md` split from the monolithic `commands.md` — each command loads only its own spec (~1–2k tokens) instead of the full file (~12k tokens). (#232, PR #233)
+- **Orbit self-enforcement runtime**: `bin/validate-pr-governance.js`, `bin/validate-doc-updates.js`, `bin/review-evidence.js` wired into Sentinel — PR body freshness (SHA match), docs-update governance, and residual-risk labeling are now blocking CI gates. Waves 1–3 + 5 enforcement active. (#227, PRs #228, #229)
+- **Docs artifact naming gate**: `bin/validate-doc-naming.js` added as `docs-naming-gate` Sentinel job — enforces `artifact-conventions.md` naming rules at commit time. (#215, PR #230)
+- **Documentation index**: `docs/INDEX.md` with audience reading paths, folder contracts, and ordered navigation. (#214, PR #223)
+- **Event-sourced state model**: `bin/event-log.js`, typed event log in `.orbit/state/EVENT-LOG.jsonl`, `STATE.md` as materialized view. Includes security hardening, edge-case fixes, and setup recovery. (#213, #205, #220, PRs #218, #220)
+- **`/orbit:do` intake gate**: New entry-point command for plain-prompt intake with scope confirmation before execution. (#224)
+- **`orbit:resume --context` flag**: Resume command now accepts `--context` to surface last logged token usage at session start. (#224)
+
+### Changed
+
+- **System prompt efficiency**: `install.sh` stops writing the duplicate root-level `CLAUDE.md` (was loaded twice per turn, ~4,166 tokens each). `templates/orbit.base.md` trimmed by ~2,246 bytes — total saving ~4,700 tokens/turn (~30% floor reduction). (#236, PR #237)
+- **`.claude/commands/orbit/specs/` is now a symlink** on local self-installs, pointing to `commands/orbit/specs/`. Eliminates copy drift where edits to source specs were not reflected in the runtime directory. Global/consumer installs continue to copy. (#240, PR #239)
+- **Token floor estimate corrected**: `shared.md` system context floor updated from `~15,000` to `~10,300` tokens to reflect post-#236 reality. (#240)
+- **`orbit.config.json`**: `security.identity_separation` default flipped from `false` to `true` — enterprise-safe out-of-box. Single-user environments may opt out. (#207, PR #238)
+- **`orbit.config.schema.json`**: `security.identity_separation` schema default updated to `true`. (#207)
+- **Wave 4 plan relocated**: `PHASE-4-PLAN.md` moved to `docs/plans/v2.9.0-wave-4-ship-positioning.md` per artifact-conventions. (#212, PR #216)
+
+### Fixed
+
+- **`/orbit:resume` GitHub PR cross-reference**: Resume now runs `gh pr view` to determine actual merge status before emitting ship status — prevents stale STATE.md from misreporting unshipped work as shipped. (#225, PR #226)
+- **PR template auto-close syntax**: Changed to `Closes #issue` for proper GitHub auto-close on merge to `develop`. (#229)
+- **Event log setup recovery**: `bin/setup.js` now restores tracked `.orbit/` state files from git before bootstrap to prevent event log corruption on fresh clones. (#221)
+- **`orbit.config.json` schema validation at startup**: Orchestrator now validates `orbit.config.json` against `orbit.config.schema.json` at startup and emits structured errors on schema violations. (#206, PR #231)
+- **Sentinel PII scan — Windows path coverage**: Lint job now rejects `C:\Users\...` and `C:/Users/...` in addition to `/Users/...` patterns. Step name updated to reflect cross-platform coverage. (#211, PR #241)
+- **`npm run help`**: Added help script for operator discoverability. Vite CVE patched. (#224)
+- **`bin/safety-evaluator.js` refactored for testability**: Extracted named exports (`evaluateSafety`, `detectInjection`, `detectObfuscation`, `evaluateRisk`) with `require.main` guard — import is now side-effect-free. (#208, PR #242)
+
+### Tests
+
+- **`tests/safety-evaluator.test.js`** (13 tests): Full coverage of `evaluateSafety`, `detectInjection`, `detectObfuscation`, and `evaluateRisk`. (#208)
+- **`tests/prompt-dispatch.test.js`** (12 tests): Coverage of `classifyPromptDispatch`, `dispatchPrompt`, `extractExplicitOrbitCommand`, and `inferWorkflow`. (#208)
+- **`vitest.config.js`**: Coverage surface expanded to include `bin/safety-evaluator.js` and `bin/prompt-dispatch.js`. Sprint-3 deferral comment removed. (#208, PR #242)
+
 ## [2.9.0] - 2026-04-05
 
 ### Added
