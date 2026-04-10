@@ -4,7 +4,7 @@ All notable changes to the Orbit framework will be documented in this file. The 
 
 ## [Unreleased]
 
-## [2.9.0] - 2026-04-10 (in progress)
+## [2.9.1] - 2026-04-11
 
 ### Added
 
