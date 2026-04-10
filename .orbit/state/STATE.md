@@ -9,7 +9,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 - **Active Phase**: Wave 0 → Wave 1 → Wave 1.5 → Wave 2 → Wave 3 → Wave 0.5 → Wave 4
 - **Current Focus**: Wave 4
 - **Current Version**: v2.8.1
-- **Current Branch**: fix/211-windows-pii-scan
+- **Current Branch**: feat/208-safety-evaluator-coverage
 - **Active PR**: not opened yet
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
@@ -24,7 +24,7 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 | 2 | Safety + Workflow Primitives | ✅ shipped | Clarification gate, loop detection, launch/discover workflows, and decisions log are landed. |
 | 3 | Structure + Registry Discipline | 🔄 in progress | Repo cleanup landed; registry consolidation is still open. |
 | 0.5 | Foundation Hardening | ✅ shipped | All items complete: event-sourced state, docs index, naming enforcement, plan relocation, enforcement runtime, resume fix. |
-| 4 | Ship + Positioning | 🔄 in progress | Wave 0.5 cleared. #206 ✅, #207 ✅, #211 ✅. Open: #208. #79 → v3.0.0, #81 ✅. |
+| 4 | Ship + Positioning | 🔄 in progress | Wave 0.5 cleared. #206 ✅, #207 ✅, #211 ✅, #208 ✅. #79 → v3.0.0, #81 ✅. All Wave 4 items complete. |
 
 ## Decision Ledger
 See `.orbit/state/DECISIONS-LOG.md` for the additive decision history.
@@ -39,11 +39,11 @@ Use this file to summarize the current release surface, not to duplicate the ful
 
 ## Recently Completed (last 5 tasks)
 ```text
-✅ #211 fix(ci): add Windows C:\Users\ path to Sentinel PII scan — fix/211-windows-pii-scan (2026-04-10)
+✅ #208 feat(test): expand vitest coverage to safety-evaluator + prompt-dispatch (2026-04-10)
+✅ #211 fix(ci): add Windows C:\Users\ path to Sentinel PII scan — PR #241 (2026-04-10)
 ✅ #240 fix(install): symlink specs dir + correct token floor — PR #239 (2026-04-10)
 ✅ #207 fix(security): flip identity_separation default to true — PR #238 merged 2026-04-09
 ✅ #234 feat(cost): emit token usage footer after every orbit command — PR #235 merged 2026-04-09
-✅ #232 feat(cost): split commands.md into per-command specs + token tracking — PR #233 merged
 ```
 
 ## Todos + Seeds
@@ -92,6 +92,7 @@ Use this file to summarize the current release surface, not to duplicate the ful
 - [x] #207 — fix(security): flip identity_separation default to true
 - [ ] #208 — feat(test): expand vitest coverage surface to safety-evaluator and prompt-dispatch
 - [x] #211 — fix(ci): add Windows C:\Users\ path pattern to Sentinel PII scan
+- [x] #208 — feat(test): expand vitest coverage surface to safety-evaluator and prompt-dispatch
 - [~] #79 — feat(ci): adopt engineering-standards pipeline.yml — reassigned to v3.0.0 milestone (not v2.9.0)
 - [x] #81 — docs(readme): rewrite product positioning for idea-to-market audience
 - [~] #232 — feat(cost): split commands.md into per-command specs + token tracking (in progress)
