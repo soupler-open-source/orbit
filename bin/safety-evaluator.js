@@ -42,8 +42,9 @@ const SENSITIVE_PATHS = [
 const DESTRUCTIVE_COMMANDS = ['rm', 'mkfs', 'dd', 'format', 'shutdown', 'reboot', 'init'];
 
 function detectInjection(command) {
-  return BYPASS_PATTERNS.some((p) => p.test(command)) ||
-    INJECTION_PATTERNS.some((p) => p.test(command));
+  return (
+    BYPASS_PATTERNS.some((p) => p.test(command)) || INJECTION_PATTERNS.some((p) => p.test(command))
+  );
 }
 
 function detectObfuscation(payload) {
