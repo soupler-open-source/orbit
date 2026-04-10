@@ -170,13 +170,22 @@ install_for_claude() {
   cp "$FRAMEWORK_DIR/commands/commands.md" "$CLAUDE_DIR/commands/orbit/commands.md"
   qecho "  ✓ commands/orbit/commands.md"
 
-  # Install per-command spec files (runtime token cost reduction)
+  # Install per-command spec files — symlink when source and target are in the same repo,
+  # copy otherwise (global install or external consumer).
   if [[ -d "$FRAMEWORK_DIR/commands/orbit/specs" ]]; then
-    for f in "$FRAMEWORK_DIR"/commands/orbit/specs/*.md; do
-      name=$(basename "$f")
-      cp "$f" "$CLAUDE_DIR/commands/orbit/specs/$name"
-    done
-    qecho "  ✓ commands/orbit/specs/ ($(ls "$FRAMEWORK_DIR/commands/orbit/specs/"*.md | wc -l | tr -d ' ') spec files)"
+    local specs_target="$CLAUDE_DIR/commands/orbit/specs"
+    rm -rf "$specs_target"
+    if [[ "$INSTALL_MODE" != "global" && "$FRAMEWORK_DIR" == "$PROJECT_DIR" ]]; then
+      # Local self-install: symlink so edits to commands/orbit/specs/ are live immediately.
+      ln -s "../../../commands/orbit/specs" "$specs_target"
+      qecho "  ✓ commands/orbit/specs/ → symlink (live, no copy needed)"
+    else
+      mkdir -p "$specs_target"
+      for f in "$FRAMEWORK_DIR"/commands/orbit/specs/*.md; do
+        cp "$f" "$specs_target/$(basename "$f")"
+      done
+      qecho "  ✓ commands/orbit/specs/ ($(ls "$FRAMEWORK_DIR/commands/orbit/specs/"*.md | wc -l | tr -d ' ') spec files copied)"
+    fi
   fi
 
   # Generate individual command entry points — each loads only its own spec

@@ -102,7 +102,7 @@ Appended at the end of completed commands so the user has a concrete next step.
 At command completion, Claude must:
 
 1. Estimate token usage for this command:
-   - **Input**: sum of (bytes of every file read this command / 4) + system context floor (~15,000 tokens)
+   - **Input**: sum of (bytes of every file read this command / 4) + system context floor (~10,300 tokens)
    - **Output**: total chars written in this response / 4
 2. Log the entry:
    ```
