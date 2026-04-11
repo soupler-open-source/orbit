@@ -1,3 +1,11 @@
+---
+id: standards-index
+doc_type: index
+status: Active
+version: v1
+last_updated: 2026-04-11
+---
+
 # Standards Index
 
 > Meta-rules that govern naming, versioning, metadata, and artifact placement across the entire Orbit repository.
