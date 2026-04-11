@@ -95,7 +95,8 @@ function buildCheckpointManifest({ args = {}, profile = {}, evidence = {}, workf
   const branch = evidence.branch || args.branch || null;
   const currentBranch = safeExec(['git', 'rev-parse', '--abbrev-ref', 'HEAD']) || branch;
   const issue = args.issue || evidence.issue || null;
-  const pr = args.pr || args.prNumber || evidence.prNumber || null;
+  const prStatusIsNotOpen = args.prStatus === 'not_open' || evidence.prStatus === 'not_open';
+  const pr = prStatusIsNotOpen ? null : args.pr || args.prNumber || evidence.prNumber || null;
   const dirtyOutput = safeExec(['git', 'status', '--porcelain']);
   const unrelatedLocalChanges = dirtyOutput
     .split('\n')
@@ -171,11 +172,46 @@ function writeCheckpointManifest({
   return { latestPath, historyPath };
 }
 
+/**
+ * Read the latest checkpoint manifest, merge new workflow evidence fields into
+ * the `workflow_evidence` sub-object, and write it back atomically.
+ *
+ * `fields` maps directly to workflow-state.js evidence keys:
+ *   issue, branch, implementationStatus, testsStatus, reviewStatus,
+ *   reviewEvidenceStatus, testEvidenceStatus, shipDecisionStatus, prStatus, reviewFindings
+ *
+ * Callers that want to RESET review/test evidence (e.g. after a new implementation
+ * commit) should pass those fields explicitly — this function always overwrites
+ * whatever keys are present in `fields`.
+ */
+function mergeCheckpoint(fields, options = {}) {
+  const dir = path.resolve(options.checkpointDir || DEFAULT_CHECKPOINT_DIR);
+  const latestPath = path.join(dir, 'latest.json');
+  let existing = {};
+  try {
+    existing = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
+  } catch (_) {
+    // no checkpoint yet — start fresh
+  }
+  const merged = {
+    ...existing,
+    workflow_evidence: {
+      ...(existing.workflow_evidence || {}),
+      ...fields,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(latestPath, JSON.stringify(merged, null, 2) + '\n');
+  return merged;
+}
+
 module.exports = {
   DEFAULT_CHECKPOINT_DIR,
   buildCheckpointManifest,
   buildVerificationSummary,
   categorizeImpact,
+  mergeCheckpoint,
   normalizeChangedFiles,
   writeCheckpointManifest,
 };

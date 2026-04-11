@@ -1,3 +1,12 @@
+# Orbit Commands — Human-Readable Reference
+
+> **Runtime source**: per-command specs live in `commands/orbit/specs/` and are installed to
+> `.claude/commands/orbit/specs/` at install time. Each command entry point loads only its own
+> spec (~1-2k tokens) instead of this full file (~12k tokens). Update both this file and the
+> matching `commands/orbit/specs/<command>.md` when changing a command spec.
+
+---
+
 # STATE.md Update Protocol
 
 > Standing rule — applies to every Orbit command, every session
@@ -306,13 +315,22 @@ Load `skills/deployment.md`. Requires PHASE-{N}-UAT.md to exist and pass.
    - `CHANGELOG.md` entry updates
    - `README.md` / user-facing documentation updates when behavior changed
    - release-note wording that explains the shipped phase clearly
-4. Create PR with auto-generated description:
-   - What was built
-   - How to test
-   - Changes to infrastructure/config
-5. If approved: deploy to staging → run smoke tests → deploy to prod
-6. Tag release: `v{milestone}.{phase}`
-7. Update STATE.md: phase marked shipped
+4. Ensure all commits are done (CHANGELOG, README, any doc updates) **before** invoking the PR controller. The controller captures HEAD at invocation time; any commit pushed after will make the embedded `Head SHA` stale and fail CI.
+5. Create PR using the controller — never bare `gh pr create`:
+   ```
+   node bin/pull-request-controller.js \
+     --issue "#N" \
+     --branch "<branch>" \
+     --title "<title>" \
+     --commands "<cmd1> || <cmd2>"
+   ```
+   The controller builds the body from the validated template, pre-validates all
+   governance rules (required headings, test-plan format, residual-risk labels,
+   Head SHA freshness), and only calls `gh pr create` or `gh pr edit` if validation passes.
+   Bare `gh pr create --body "..."` bypasses all governance and is forbidden.
+6. If approved: deploy to staging → run smoke tests → deploy to prod
+7. Tag release: `v{milestone}.{phase}`
+8. Update STATE.md: phase marked shipped
 8. Output: deployment summary + next phase hint
 
 **After completion, emit:**
@@ -484,9 +502,19 @@ If the user gives a plain prompt that implies a tracked implementation task, Orb
    </task>
    ```
 4. Execute with relevant skill loaded
-5. Verify, commit, update STATE.md, and write the checkpoint manifest to `.orbit/state/checkpoints/latest.json`
-6. If the task is review-ready, push branch, generate the PR body from the repo-local controller, validate it locally against `validate-pr-governance` and `validate-doc-updates`, refresh the `Head SHA` marker, and only then create or update the PR before running `/orbit:review`
-7. Before requesting review or ship progression, refresh the PR body evidence:
+5. Verify and commit the implementation atomically. Then commit the STATE.md sync as a **separate** follow-up commit immediately after. Both commits must land before the PR controller is invoked — the controller captures HEAD at invocation time and embeds it as the `Head SHA` freshness marker; any commit pushed after that will invalidate it in CI.
+6. Write the checkpoint manifest: `node bin/checkpoint.js --review-status approved --tests-status passed --issue "#N"`
+7. If the task is review-ready, push the branch and open/refresh the PR using the controller CLI — never bare `gh pr create`. Run this as the **last step**, after all commits including STATE.md sync are pushed:
+   ```
+   node bin/pull-request-controller.js \
+     --issue "#N" --branch "<branch>" --title "<title>" \
+     --commands "<cmd1> || <cmd2>"
+   ```
+   The controller builds the body from the validated template, enforces required headings,
+   test-plan command format (`` - `cmd` `` only), residual-risk single-line labels, and
+   Head SHA freshness — then calls `gh pr create` or `gh pr edit` only if all checks pass.
+   If validation fails, fix the inputs and retry; do not bypass with bare `gh pr create`.
+8. Before requesting review or ship progression, refresh the PR body evidence:
    - `## Test plan` lists the commands actually run
    - `Orbit Self-Review` records the review command, dispatched agents, ship decision, and findings handled
    - PR sync must stop locally if governance or docs-update validation fails; do not mutate GitHub until the generated body passes both checks
@@ -757,6 +785,22 @@ Then show session token usage if available from STATE.md or context metadata.
 
 > Reload project state and continue from where we left off
 
+## SYNTAX
+
+```
+/orbit:resume [--context minimal|standard|full|decisions|blocked]
+```
+
+`--context` is optional. Default is `minimal`. Use a higher level when you need more history in the session.
+
+| Flag | Tokens | Use when |
+|------|--------|----------|
+| `--context minimal` | ~300 | Default — picking up a task, you know the project |
+| `--context standard` | ~1.5k | Need last 10 decisions — e.g. "why did we do X" |
+| `--context full` | ~3k | Architecture review, debugging a complex issue |
+| `--context decisions` | ~200 | Only the decision log — rationale audit |
+| `--context blocked` | ~100 | Only blocked tasks — triage session |
+
 ## CALL MODES
 
 **Session-start mode** (default — called at the beginning of a new session):
@@ -774,17 +818,31 @@ Diff mode: show only what changed in STATE.md since session started — new deci
 
 ## PROCESS
 
-1. If `.orbit/context.db` exists: run `node bin/context.js --load minimal` for fast partial context load (~300 tokens).
+1. **Read `.orbit/state/checkpoints/latest.json`** — this is the primary workflow state source. It reflects the most recent post-commit evidence and any review/verify results explicitly recorded. Extract `workflow_evidence` for use in step 4's decision table. If the file is absent, continue without it.
+2. Parse `--context <level>` from the command arguments. Default to `minimal` if not supplied.
+   If `.orbit/context.db` exists: run `node bin/context.js --load <level>`.
    Fallback: Read `.orbit/state/STATE.md` directly if context.db absent.
    Also read `.orbit/state/pre-compact-snapshot.md` if it exists.
-2. Run `git log --oneline -5` to confirm what was last committed.
-3. Output a status summary:
+3. Run `git log --oneline -5` to confirm what was last committed.
+4. **Cross-reference GitHub PR state** — if the current branch is not `develop` or `main`, run:
+   ```
+   gh pr view --json state,mergedAt,number,title
+   ```
+   Use the result to determine actual ship status before emitting any output:
+   - `MERGED` → report the branch as shipped; do not flag its commits as unshipped work. Note the PR number and merge date.
+   - `OPEN` → report as in-flight with the PR link.
+   - `CLOSED` (not merged) → report as abandoned; flag for cleanup.
+   - command fails / no PR found → branch is local-only; treat commits as unshipped.
+
+   **Why this step is mandatory**: STATE.md and local git state can be stale after a terminal is closed without a checkpoint. GitHub is the authoritative source for PR merge status.
+5. Output a status summary:
    - Active milestone + phase
-   - Last 5 completed tasks
+   - Last 5 completed tasks (use checkpoint `workflow_evidence` to correct any stale STATE.md entries)
    - Open todos for current milestone
    - Any blockers
 
-4. **Infer and output the Next Command block** using this decision table (first matching rule wins):
+6. **Infer and output the Next Command block** using this decision table (first matching rule wins):
+   When `checkpoints/latest.json` is present, use `workflow_evidence` to refine the recommendation — checkpoint state takes priority over STATE.md signals for the active branch.
 
 | STATE.md signal                                                                | Primary recommendation                             |
 | ------------------------------------------------------------------------------ | -------------------------------------------------- |
@@ -809,12 +867,159 @@ Output format (always append this block):
 - /orbit:next — let Orbit auto-detect based on full state analysis
 ```
 
-5. Continue work without requiring re-briefing.
+7. Continue work without requiring re-briefing.
 
-6. Whenever a commit, push, stop, or pre-compact event occurs, refresh `context.db` from `STATE.md` so the structured cache stays current.
+8. Whenever a commit, push, stop, or pre-compact event occurs, refresh `context.db` from `STATE.md` so the structured cache stays current.
 
 > **Tip**: Plain prompts are allowed. Orbit should infer the right workflow for tracked work. New scope still means a new Orbit task boundary, even when the user does not type the slash command explicitly.
 > If the session is mid-flight, emit the current execution block and the completion footer before continuing.
+
+---
+
+# Orbit Command: /orbit:do <anything>
+
+> Universal entry point — classifies any input and routes it through the correct Orbit workflow with full governance enforcement. Prevents vague prompts from bypassing branch discipline, issue tracking, and PR governance.
+
+## WHY THIS EXISTS
+
+`/orbit:quick` assumes you already have an issue number and a branch scope.
+`/orbit:ask` is read-only Q&A against project state.
+Neither handles the full spectrum of real inputs: vague bug reports, mixed Q&A + implementation requests, exploratory research, or informal language that typically bypasses governance ("just fix it", "quickly add…").
+
+`/orbit:do` is the universal intake gate. It classifies first, then routes — ensuring every write operation is tracked and every read operation is answered efficiently.
+
+## CLASSIFICATION ENGINE
+
+On every invocation, classify the input on three axes before taking any action:
+
+**Intent type**
+| Type | Signal phrases | Governance |
+|------|---------------|------------|
+| `Q&A` | "what is", "why did", "explain", "how does", "tell me" | None — answer directly |
+| `Research` | "investigate", "compare", "what's the best way", "should we" | None — dispatch researcher |
+| `Implementation` | "add", "fix", "build", "refactor", "implement", "update", "remove" | Full — branch + issue + PR |
+| `Debug` | "broken", "error", "failing", "not working", "why is X happening" | Full — route to /orbit:debug |
+| `Review` | "review", "check", "audit", "look at", "is this right" | Tracked — route to /orbit:review |
+| `Mixed` | Contains both read and write signals | Split — answer read part, gate write part |
+
+**Confidence**
+- `High` (>80%) — proceed with inferred route
+- `Medium` (50–80%) — state inferred route, proceed unless user corrects
+- `Low` (<50%) — ask ONE clarifying question, then route
+
+**Bypass signal detection**
+Informal language that historically bypasses governance: "just", "quickly", "real fast", "one liner", "tiny change", "don't worry about tracking", "skip the PR", "don't bother with a branch".
+
+Do NOT refuse or lecture. Route through governance naturally and invisibly. The user gets speed; the audit trail still exists.
+
+## PROCESS
+
+**Step 1 — Classify**
+
+Emit the classification block:
+```
+━━━ Orbit:Do ━━━━━━━━━━━━━━━━━━━━━━━━
+  Intent:     {Q&A | Research | Implementation | Debug | Review | Mixed}
+  Confidence: {High | Medium | Low}
+  Scope:      {Read-only | Local | Tracked}
+  Route:      {direct | /orbit:quick | /orbit:plan | /orbit:debug | /orbit:review | clarify}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Step 2 — Route**
+
+| Classification | Action |
+|---------------|--------|
+| Q&A, high confidence | Answer directly. Cite source (STATE.md, context.db, codebase). Done. |
+| Research, high confidence | Dispatch `researcher` agent. No branch. Suggest next command if findings warrant implementation. |
+| Implementation, high confidence, QUICK | Enforce issue exists (search open issues; create one if not found). Route to `/orbit:quick #NNN`. |
+| Implementation, high confidence, PHASE | Route to `/orbit:plan`. |
+| Debug, high confidence | Route to `/orbit:debug <issue>`. |
+| Review, high confidence | Route to `/orbit:review`. |
+| Mixed | Answer the read part first. Then: "Should I also track and implement the change? [yes/no]". If yes, re-route write part through implementation path. |
+| Low confidence | Ask ONE clarifying question. Example: "Is this a question about how X works, or do you want me to change it?" Resume after answer. |
+| Bypass signal detected | Acknowledge, route through governance silently. Do not surface the bypass detection unless the user explicitly asks to skip tracking. |
+
+**Step 3 — Execute**
+
+Follow the routed command's process spec exactly. Do not abbreviate governance steps because the input was informal.
+
+**Step 4 — Reflect**
+
+After execution, if the input was `Mixed` or `Low confidence`, append a one-line note:
+> "Classified as `{type}` — if this was wrong, use `/orbit:ask` for pure Q&A or `/orbit:quick #NNN` for a scoped task."
+
+## EDGE CASES
+
+| Situation | Handling |
+|-----------|----------|
+| "Fix the auth bug" — no issue number | Search open GitHub issues for "auth". Present top 3 matches. If none match, create a new issue first. |
+| Already on a feature branch, request scope differs | Warn: "You're on `feat/NNN-slug`. This request looks like a different scope — should I switch to a new branch?" |
+| Destructive operation detected (delete, drop, remove all) | Pause. State the blast radius. Require explicit confirmation before proceeding. |
+| "Explain how X works and then optimise it" | Sequential: explain first (Q&A), then ask before switching to implementation mode. |
+| Cross-repo request | Check if Nexus is configured. If yes, route to `/orbit:nexus`. If no, flag the limitation. |
+| Request references a closed/merged issue | Surface the closure. Ask: "Issue #NNN is closed — should I open a new one, or is this a regression?" |
+| Scope creep mid Q&A ("…actually, just change it") | Re-classify mid-conversation. Emit a new classification block. Route the write part through governance. |
+| Explicit override after governance warning ("I know, just do it") | Respect once. Log the override in sessions.log. Do not repeat the warning in the same session. |
+| No STATE.md or context.db present | Proceed with codebase-only context. Flag missing state. Suggest `/orbit:bootstrap`. |
+
+## EXAMPLES
+
+```
+/orbit:do what is blocking Wave 4?
+→ Q&A — reads context.db, answers directly
+
+/orbit:do why did we choose SQLite over a flat file for context.db?
+→ Q&A — cites rationale from DECISIONS-LOG.md verbatim
+
+/orbit:do the sentinel PII check is missing Windows paths
+→ Implementation — finds or creates issue, routes to /orbit:quick
+
+/orbit:do explain the wave architecture and then add parallel execution logging
+→ Mixed — explains first, then asks before switching to implementation
+
+/orbit:do just quickly add a --dry-run flag to the bootstrap script
+→ Bypass signal detected — routes through governance silently
+→ "On it — cutting feat/NNN-add-bootstrap-dry-run..."
+
+/orbit:do is the retry logic in sentinel correct?
+→ Review — routes to /orbit:review with the specific file scoped
+```
+
+---
+
+# Orbit Command: /orbit:checkpoint
+
+> Explicit session save-point — write current progress to checkpoint manifest, STATE.md, and context.db before closing a terminal or switching context.
+
+## WHEN TO USE
+
+- Before closing a terminal intentionally (avoids stale-state on `/orbit:resume`)
+- After a significant step you want to preserve (review run, tests green)
+- Before a long-running operation where you want a known-good snapshot
+
+## SYNTAX
+
+```
+/orbit:checkpoint [--review-status <approved|changes_requested>]
+                  [--tests-status <passed|failed>]
+                  [--pr-status <open|merged|not_open>]
+                  [--issue <#NNN>]
+```
+
+## PROCESS
+
+1. Read current branch and HEAD SHA from git.
+2. Infer issue from branch name.
+3. Merge provided evidence into `.orbit/state/checkpoints/latest.json` under `workflow_evidence`.
+4. Run `sync-context.sh` to update `context.db` and STATE.md.
+5. Emit confirmation block.
+
+## IMPLEMENTATION
+
+```
+node bin/checkpoint.js [flags]
+```
 
 ---
 

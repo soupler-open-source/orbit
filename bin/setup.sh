@@ -154,6 +154,24 @@ main() {
   echo -e "${B}━━━ Orbit Setup ━━━━━━━━━━━━━━━━━━━━━━━━${N}"
   echo ""
 
+  # ── Restore tracked .orbit state files from git ──────────────────────────────
+  # Only restore when setup is running inside the Orbit framework repo itself
+  # (i.e. developing Orbit with Orbit). When Orbit is installed into a different
+  # project, install.sh already seeds blank templates — restoring from git here
+  # would overwrite the target project's state with Orbit's own history.
+  local project_dir_real framework_dir_real
+  project_dir_real="$(cd "$PWD" && pwd -P)"
+  framework_dir_real="$(cd "$FRAMEWORK_DIR" && pwd -P)"
+
+  if [[ "$project_dir_real" == "$framework_dir_real" ]]; then
+    if git -C "$FRAMEWORK_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+      if git -C "$FRAMEWORK_DIR" checkout -- .orbit/ 2>/dev/null; then
+        echo -e "  ${G}✓${N} .orbit state files restored from git (Orbit self-install)"
+      fi
+    fi
+  fi
+  echo ""
+
   # Determine tools to install
   local tools_str
   if [[ -n "$explicit_tools" ]]; then
@@ -231,6 +249,17 @@ main() {
   else
     echo -e "  ${Y}⚠  bootstrap failed — context.db may be missing or stale${N}"
     echo "     Run manually: npm run bootstrap"
+  fi
+
+  # ── Replay EVENT-LOG.jsonl → patch STATE.md dynamic sections ────────────────
+  # Brings STATE.md in sync with the event log (currentFocus, blockers, recently completed).
+  # Skipped silently if EVENT-LOG.jsonl doesn't exist yet.
+  echo -e "${B}Replaying event log → STATE.md...${N}"
+  if ORBIT_ROOT_DIR="$PWD" node "$FRAMEWORK_DIR/bin/bootstrap.js" --replay 2>&1; then
+    echo -e "  ${G}✓ STATE.md patched from EVENT-LOG.jsonl${N}"
+  else
+    echo -e "  ${Y}⚠  replay failed — STATE.md may be stale${N}"
+    echo "     Run manually: node bin/bootstrap.js --replay"
   fi
 
   echo ""

@@ -55,6 +55,7 @@ Mitigations in place: `skills/prompt-safety.md`, `agents/safety-evaluator.md`, `
 - **Review hooks before install**: inspect `hooks/` before running `install.sh`
 - **Restrict hook permissions**: hooks should not have network access unless your workflow requires it
 - **Keep STATE.md out of version control**: it may contain sensitive task context
+- **Identity separation is on by default** (v2.9.0+): multi-identity context boundaries are enforced for team and enterprise environments. To opt out for single-user or local dev use, set `"identity_separation": false` in `orbit.config.json`.
 
 ## Scope
 

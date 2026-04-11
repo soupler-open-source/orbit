@@ -21,6 +21,7 @@ const {
   assertWorkflowTransition,
   evaluateWorkflowState,
 } = require('./workflow-state');
+const { appendEvent, EVENT_TYPES } = require('./event-log');
 
 class OrbitOrchestrator {
   constructor(projectRoot) {
@@ -31,15 +32,38 @@ class OrbitOrchestrator {
     this.stateFile = path.join(this.stateDir, 'STATE.md');
 
     this.registry = JSON.parse(fs.readFileSync(this.registryPath, 'utf8'));
-    this.config = fs.existsSync(this.configPath)
-      ? JSON.parse(fs.readFileSync(this.configPath, 'utf8'))
-      : { models: { routing: 'auto' }, git: { worktree_per_task: false } };
+    if (fs.existsSync(this.configPath)) {
+      const rawConfig = JSON.parse(fs.readFileSync(this.configPath, 'utf8'));
+      this.validateConfig(rawConfig);
+      this.config = rawConfig;
+    } else {
+      this.config = { models: { routing: 'auto' }, git: { worktree_per_task: false } };
+    }
 
     // Nexus Consciousness (Task 2.3)
     this.nexusPath = path.join(projectRoot, 'orbit.nexus.json');
     this.isNexus = fs.existsSync(this.nexusPath);
     this.nexus = this.isNexus ? JSON.parse(fs.readFileSync(this.nexusPath, 'utf8')) : null;
     this.hasWarnedDistributedMutex = false;
+  }
+
+  validateConfig(config) {
+    const schemaPath = path.join(this.projectRoot, 'orbit.config.schema.json');
+    if (!fs.existsSync(schemaPath)) {
+      console.warn('[WARN-ORBIT] orbit.config.schema.json not found — skipping validation');
+      return;
+    }
+    const Ajv = require('ajv/dist/2020');
+    const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+    const ajv = new Ajv({ allErrors: true });
+    const validate = ajv.compile(schema);
+    if (!validate(config)) {
+      const details = ajv.errorsText(validate.errors, { separator: '\n  ' });
+      throw new Error(
+        `[ERR-ORBIT-007] orbit.config.json failed schema validation:\n  ${details}\n` +
+          `  Fix orbit.config.json and restart.`
+      );
+    }
   }
 
   shouldWarnDistributedMutex() {
@@ -152,6 +176,22 @@ class OrbitOrchestrator {
 
     fs.mkdirSync(this.stateDir, { recursive: true });
     fs.writeFileSync(this.stateFile, `${updated}\n`);
+
+    try {
+      appendEvent(
+        {
+          type: EVENT_TYPES.BLOCKER_ADDED,
+          id: `LOOP-${fields.wave}-${fields.session}`,
+          note: `LOOP_DETECTED wave:${fields.wave} agent:${fields.agent} pattern:${fields.pattern} repeats:${fields.repeats}`,
+          wave: fields.wave,
+          agent: fields.agent,
+          detectedAt: fields.detectedAt,
+        },
+        path.join(this.stateDir, 'EVENT-LOG.jsonl')
+      );
+    } catch (_e) {
+      // Best-effort
+    }
   }
 
   /**
@@ -291,9 +331,29 @@ class OrbitOrchestrator {
   /**
    * Dispatches a wave of tasks to parallel subagents.
    */
-  async executeWave(tasks, waveId = Date.now().toString()) {
+  async executeWave(tasks, waveId = Date.now().toString(), waveLabel = null) {
     console.log(formatWaveStart({ wave: waveId, taskCount: tasks.length }));
     console.log(`\n🚀 Starting Wave ${waveId} with ${tasks.length} agents...\n`);
+
+    // Use an explicit human-readable label when provided; otherwise fall back to
+    // "Wave <waveId>". This prevents phase_transition events from recording
+    // opaque timestamp-based IDs like "Wave 1744123456789" in the event log.
+    const phaseLabel = waveLabel || `Wave ${waveId}`;
+    const eventLogPath = path.join(this.stateDir, 'EVENT-LOG.jsonl');
+    try {
+      appendEvent(
+        {
+          type: EVENT_TYPES.PHASE_TRANSITION,
+          to: phaseLabel,
+          waveId,
+          taskCount: tasks.length,
+          actor: 'orchestrator',
+        },
+        eventLogPath
+      );
+    } catch (_e) {
+      // Event log is best-effort — never block wave execution on log failure
+    }
 
     const results = [];
     const loopHistoryBySession = new Map();

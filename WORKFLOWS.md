@@ -33,6 +33,7 @@
 - `/orbit:worktree` [collaborative] — inputs: parallel task plan → outputs: worktree setup guidance
 - `/orbit:cost` [audit] — inputs: session usage → outputs: token and cost estimate
 - `/orbit:promote` [collaborative] — inputs: local patterns, agents, skills → outputs: core repository PR, registry update
+- `/orbit:do` [autonomous] — inputs: any plain prompt — vague or specific, Q&A or implementation → outputs: classified route + direct answer OR governed implementation via /orbit:quick|plan|debug|review
 - `/orbit:ask` [collaborative] — inputs: question about project state → outputs: answer from STATE.md or context.db with source citation
 - `/orbit:clarify` [collaborative] — inputs: pending clarification requests, operator answer → outputs: clarification queue, clarification resolution
 <!-- GENERATED:END workflows_list -->

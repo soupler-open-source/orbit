@@ -107,20 +107,22 @@ install_for_claude() {
   # Core directories
   mkdir -p \
     "$CLAUDE_DIR/commands/orbit" \
+    "$CLAUDE_DIR/commands/orbit/specs" \
     "$CLAUDE_DIR/agents" \
     "$CLAUDE_DIR/skills" \
     "$CLAUDE_DIR/state" \
     "$CLAUDE_DIR/orbit/hooks"
 
   # ── Orchestrator (generated from template at install time) ────────────────
-  # Written to .claude/CLAUDE.md (Claude Code's project-level instructions)
-  # Also written to the project root so Claude Code auto-detects it on open.
-  # Both are gitignored — this file is always generated, never committed.
+  # Written only to .claude/CLAUDE.md — Claude Code loads this as the project
+  # instruction file. The project root copy was eliminated (#236) because
+  # Claude Code loads both .claude/CLAUDE.md and CLAUDE.md, causing the same
+  # ~4,100 tokens to be paid twice on every turn.
   qrun node "$FRAMEWORK_DIR/bin/generate-instructions.js" \
     --runtime claude --output "$CLAUDE_DIR/CLAUDE.md"
-  qrun node "$FRAMEWORK_DIR/bin/generate-instructions.js" \
-    --runtime claude --output "$PROJECT_DIR/CLAUDE.md"
-  qecho "  ✓ CLAUDE.md (generated for Claude runtime → .claude/ + project root)"
+  # Remove any stale root copy left from before this change.
+  [[ -f "$PROJECT_DIR/CLAUDE.md" ]] && rm -f "$PROJECT_DIR/CLAUDE.md"
+  qecho "  ✓ CLAUDE.md (generated for Claude runtime → .claude/ only)"
 
   # ── Human-view files (generated from registry + templates at install time) ─
   qrun node "$FRAMEWORK_DIR/bin/generate-instructions.js" --human-views
@@ -162,14 +164,35 @@ install_for_claude() {
   qecho "  ✓ skills/ ($(ls "$FRAMEWORK_DIR/skills/"*.md | wc -l | tr -d ' ') files)"
 
   # ── Commands ──────────────────────────────────────────────────────────────
+  # commands.md is kept as the human-readable reference. Per-command specs are
+  # the runtime-loaded source — each entry point loads only its own spec file
+  # (~1-2k tokens) instead of the full monolith (~12k tokens).
   cp "$FRAMEWORK_DIR/commands/commands.md" "$CLAUDE_DIR/commands/orbit/commands.md"
   qecho "  ✓ commands/orbit/commands.md"
 
-  # Generate individual command files
+  # Install per-command spec files — symlink when source and target are in the same repo,
+  # copy otherwise (global install or external consumer).
+  if [[ -d "$FRAMEWORK_DIR/commands/orbit/specs" ]]; then
+    local specs_target="$CLAUDE_DIR/commands/orbit/specs"
+    rm -rf "$specs_target"
+    if [[ "$INSTALL_MODE" != "global" && "$FRAMEWORK_DIR" == "$PROJECT_DIR" ]]; then
+      # Local self-install: symlink so edits to commands/orbit/specs/ are live immediately.
+      ln -s "../../../commands/orbit/specs" "$specs_target"
+      qecho "  ✓ commands/orbit/specs/ → symlink (live, no copy needed)"
+    else
+      mkdir -p "$specs_target"
+      for f in "$FRAMEWORK_DIR"/commands/orbit/specs/*.md; do
+        cp "$f" "$specs_target/$(basename "$f")"
+      done
+      qecho "  ✓ commands/orbit/specs/ ($(ls "$FRAMEWORK_DIR/commands/orbit/specs/"*.md | wc -l | tr -d ' ') spec files copied)"
+    fi
+  fi
+
+  # Generate individual command entry points — each loads only its own spec
   local commands=(
     new-project plan build verify ship next quick forge review audit
     monitor debug map-codebase progress resume deploy rollback
-    riper worktree cost ask
+    riper worktree cost ask discover launch
   )
   for cmd in "${commands[@]}"; do
     cat > "$CLAUDE_DIR/commands/orbit/${cmd}.md" << CMDEOF
@@ -178,7 +201,8 @@ description: "Orbit /orbit:${cmd} — AI agent orchestration"
 allowed-tools: all
 ---
 Read \$CLAUDE_DIR/CLAUDE.md to load Orbit context.
-Read \$CLAUDE_DIR/commands/orbit/commands.md for this command's exact process specification.
+Read \$CLAUDE_DIR/commands/orbit/specs/shared.md for runtime contracts and output block formats.
+Read \$CLAUDE_DIR/commands/orbit/specs/${cmd}.md for this command's exact process specification.
 If STATE.md exists at .orbit/state/STATE.md, read it for project context.
 If DECISIONS-LOG.md exists at .orbit/state/DECISIONS-LOG.md, append durable decision history there.
 Execute: /orbit:${cmd} \$ARGUMENTS — follow the exact process defined, no shortcuts.
@@ -395,6 +419,18 @@ init_project_state() {
     qecho "  ✓ .orbit/state/OPERATIONAL-RULES.json (from template)"
   else
     qecho "  ✓ .orbit/state/OPERATIONAL-RULES.json (already exists — preserved)"
+  fi
+
+  # Seed a blank EVENT-LOG.jsonl if missing — ensures bootstrap --replay has a
+  # clean project-scoped log rather than inheriting the Orbit framework's own history.
+  if [[ ! -f "$state_dir/EVENT-LOG.jsonl" ]]; then
+    local project_name
+    project_name="$(basename "$PROJECT_DIR")"
+    echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"type\":\"snapshot\",\"note\":\"Orbit installed for ${project_name}\",\"actor\":\"install.sh\"}" \
+      > "$state_dir/EVENT-LOG.jsonl"
+    qecho "  ✓ .orbit/state/EVENT-LOG.jsonl (seeded for ${project_name})"
+  else
+    qecho "  ✓ .orbit/state/EVENT-LOG.jsonl (already exists — preserved)"
   fi
 
   # Copy hook scripts to project-local .orbit/hooks/

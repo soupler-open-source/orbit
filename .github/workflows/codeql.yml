@@ -1,10 +1,11 @@
 name: CodeQL Analysis
 
 on:
+  # CodeQL requires GitHub Advanced Security (GHAS) to upload SARIF results.
+  # Disabled on pull_request until GHAS is enabled on this repository.
+  # To re-enable: remove this comment block and restore the triggers below.
   push:
-    branches: [ develop, main ]
-  pull_request:
-    branches: [ develop, main ]
+    branches: [ main ]
   schedule:
     # Weekly scan every Monday at 08:00 UTC
     - cron: '0 8 * * 1'

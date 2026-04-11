@@ -35,6 +35,9 @@ const ROOT = ROOT_DIR;
 const STATE_PATH = path.join(ROOT, '.orbit', 'state', 'STATE.md');
 const ARGS = process.argv.slice(2);
 const FORCE = ARGS.includes('--force');
+const REPLAY = ARGS.includes('--replay');
+
+const { replayState, EVENT_LOG_PATH } = require('./event-log');
 
 // ── Colour helpers ─────────────────────────────────────────────────────────────
 const G = '\x1b[0;32m';
@@ -51,25 +54,27 @@ function log(symbol, label, value, source) {
 // ── Source readers ─────────────────────────────────────────────────────────────
 
 function readPackageJson() {
-  const p = path.join(ROOT, 'package.json');
-  if (!fs.existsSync(p)) return null;
   try {
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
+    return JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   } catch {
     return null;
   }
 }
 
 function readChangelog() {
-  const p = path.join(ROOT, 'CHANGELOG.md');
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, 'utf8');
+  try {
+    return fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 function readReadme() {
-  const p = path.join(ROOT, 'README.md');
-  if (!fs.existsSync(p)) return null;
-  return fs.readFileSync(p, 'utf8');
+  try {
+    return fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  } catch {
+    return null;
+  }
 }
 
 function extractVision(readme) {
@@ -233,8 +238,23 @@ function main() {
 
   // 6. STATE.md / DECISIONS-LOG.md — migrate decisions + active phase if exists
   let migratedDecisions = 0;
-  if (fs.existsSync(STATE_PATH) || fs.existsSync(DECISIONS_LOG_PATH)) {
-    const text = fs.existsSync(STATE_PATH) ? fs.readFileSync(STATE_PATH, 'utf8') : '';
+  const stateText = (() => {
+    try {
+      return fs.readFileSync(STATE_PATH, 'utf8');
+    } catch {
+      return null;
+    }
+  })();
+  const decisionsLogExists = (() => {
+    try {
+      fs.statSync(DECISIONS_LOG_PATH);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  if (stateText !== null || decisionsLogExists) {
+    const text = stateText ?? '';
 
     const decisionEntries = parseDecisionLogFile(DECISIONS_LOG_PATH);
     const fallbackEntries = decisionEntries.length === 0 ? parseStateDecisionTable(text) : [];
@@ -272,7 +292,7 @@ function main() {
 
     upsertResults.decisions = {
       value: `${migratedDecisions} entries`,
-      source: fs.existsSync(DECISIONS_LOG_PATH) ? 'DECISIONS-LOG.md' : 'STATE.md',
+      source: decisionsLogExists ? 'DECISIONS-LOG.md' : 'STATE.md',
     };
   }
 
@@ -323,4 +343,158 @@ function main() {
   console.log('');
 }
 
-main();
+// ── Replay mode ───────────────────────────────────────────────────────────────
+
+/**
+ * Rebuild the dynamic sections of STATE.md from EVENT-LOG.jsonl.
+ *
+ * Sections patched:
+ *   - **Current Focus**: line in ## Project Context
+ *   - ## Recently Completed (last 5 tasks) code block
+ *   - ## Blockers code block
+ *
+ * Static sections (Vision, Phase Status table, Seeds, Todos) are left
+ * untouched — they are human-curated and not derivable from events alone.
+ *
+ * Usage:
+ *   node bin/bootstrap.js --replay
+ *   node bin/bootstrap.js --replay --dry-run   # print diff without writing
+ */
+function replay() {
+  const DRY_RUN = ARGS.includes('--dry-run');
+
+  console.log('');
+  console.log(`${B}───────────────────────────────────────${N}`);
+  console.log(`${B}  Orbit Bootstrap — Replay Mode${N}`);
+  console.log(`${B}───────────────────────────────────────${N}`);
+  console.log('');
+
+  const eventLogContent = (() => {
+    try {
+      return fs.readFileSync(EVENT_LOG_PATH, 'utf8');
+    } catch {
+      return null;
+    }
+  })();
+  if (eventLogContent === null) {
+    console.log(`${Y}⚠  No EVENT-LOG.jsonl found at ${EVENT_LOG_PATH.replace(ROOT + '/', '')}${N}`);
+    console.log('   Run events through the orchestrator or seed the log first.');
+    console.log('');
+    process.exit(0);
+  }
+
+  let derived;
+  try {
+    derived = replayState();
+  } catch (err) {
+    console.error(`${Y}✗  Failed to replay events: ${err.message}${N}`);
+    process.exit(1);
+  }
+
+  const eventCount = require('./event-log').readEvents().length;
+  console.log(`  Replayed ${eventCount} event(s) from EVENT-LOG.jsonl`);
+
+  let text;
+  try {
+    text = fs.readFileSync(STATE_PATH, 'utf8');
+  } catch {
+    console.log(`${Y}⚠  STATE.md not found — nothing to patch${N}`);
+    process.exit(0);
+  }
+  let changed = false;
+
+  // 1. Patch **Current Focus**: line
+  if (derived.currentFocus) {
+    const focusRx = /(\*\*Current Focus\*\*:\s*)(.+)/;
+    if (!focusRx.test(text)) {
+      console.log(
+        `${Y}  ⚠ [replay] Could not find "**Current Focus**:" in STATE.md — section may have been renamed or removed. Skipping focus patch.${N}`
+      );
+    } else {
+      const updated = text.replace(focusRx, (_, prefix) => `${prefix}${derived.currentFocus}`);
+      if (updated !== text) {
+        log(`${G}✓${N}`, 'focus', `→ ${derived.currentFocus}`, 'phase_transition events');
+        text = updated;
+        changed = true;
+      }
+    }
+  }
+
+  // 2. Patch ## Recently Completed block
+  if (derived.recentlyCompleted.length > 0) {
+    const completedLines = derived.recentlyCompleted
+      .map((evt) => {
+        const issuePart = evt.issue ? `${evt.issue} ` : '';
+        return `✅ ${issuePart}${evt.title || evt.note || evt.type}`;
+      })
+      .join('\n');
+
+    const recentRx = /(## Recently Completed \(last 5 tasks\)\s*\n```text\s*\n)([\s\S]*?)(\n```)/;
+    if (!recentRx.test(text)) {
+      console.log(
+        `${Y}  ⚠ [replay] Could not find "## Recently Completed (last 5 tasks)" code block in STATE.md — section may have been renamed or removed. Skipping completed patch.${N}`
+      );
+    } else {
+      const updated = text.replace(recentRx, (_, open, _old, close) => {
+        return `${open}${completedLines}${close}`;
+      });
+      if (updated !== text) {
+        log(
+          `${G}✓${N}`,
+          'completed',
+          `${derived.recentlyCompleted.length} task(s) patched`,
+          'task_complete events'
+        );
+        text = updated;
+        changed = true;
+      }
+    }
+  }
+
+  // 3. Patch ## Blockers block
+  {
+    const blockerLines =
+      derived.openBlockers.length > 0
+        ? derived.openBlockers
+            .map((b) => `[OPEN] ${b.id} — ${b.note || b.description || ''}`)
+            .join('\n')
+        : '(none)';
+
+    const blockerRx = /(## Blockers\s*\n```text\s*\n)([\s\S]*?)(\n```)/;
+    if (!blockerRx.test(text)) {
+      console.log(
+        `${Y}  ⚠ [replay] Could not find "## Blockers" code block in STATE.md — section may have been renamed or removed. Skipping blockers patch.${N}`
+      );
+    } else {
+      const updated = text.replace(blockerRx, (_, open, _old, close) => {
+        return `${open}${blockerLines}${close}`;
+      });
+      if (updated !== text) {
+        log(`${G}✓${N}`, 'blockers', `${derived.openBlockers.length} open`, 'blocker events');
+        text = updated;
+        changed = true;
+      }
+    }
+  }
+
+  if (!changed) {
+    console.log(`  ${Y}—${N} STATE.md already reflects event log — no changes needed`);
+  } else if (DRY_RUN) {
+    console.log('');
+    console.log(`${Y}  [dry-run] Changes computed but NOT written to STATE.md${N}`);
+  } else {
+    fs.writeFileSync(STATE_PATH, text, 'utf8');
+    console.log('');
+    console.log(`${G}  STATE.md updated from event log.${N}`);
+  }
+
+  console.log('');
+  console.log(`${B}───────────────────────────────────────${N}`);
+  console.log('');
+}
+
+if (REPLAY) {
+  replay();
+} else {
+  main();
+}

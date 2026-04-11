@@ -97,7 +97,9 @@ function buildEvidence(args = {}, deps = {}) {
   const branch = args.branch || gitReader(['rev-parse', '--abbrev-ref', 'HEAD']) || 'HEAD';
   const issue = args.issue || inferIssueFromBranch(branch);
   const dirty = args.dirty ?? Boolean(gitReader(['status', '--porcelain']));
-  const prData = args.githubData || githubReader();
+  const currentBranch = gitReader(['rev-parse', '--abbrev-ref', 'HEAD']) || branch;
+  const branchMismatch = args.branch && args.branch !== currentBranch;
+  const prData = args.githubData || (branchMismatch ? null : githubReader());
   const reviewEvidence = prData?.body ? parseReviewEvidence(prData.body) : null;
   const evidenceStatus = prData?.body
     ? inferEvidenceStatus(prData.body)

@@ -32,6 +32,41 @@ clarification_bypass_allowed() {
   esac
 }
 
+CHECKPOINT_FILE="$PROJECT_ROOT/.orbit/state/checkpoints/latest.json"
+PR_GATE="$PROJECT_ROOT/bin/pull-request-controller.js"
+
+is_pr_command() {
+  case "$CHECK_CMD" in
+    *"pull-request-controller"*|*"gh pr create"*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# PR workflow gate: block PR commands when review has not been run.
+# Reads workflow_evidence from the checkpoint manifest and calls checkWorkflowGate.
+# Non-blocking when checkpoint is absent (graceful degradation before Wave 1 is live).
+if is_pr_command && [ -f "$CHECKPOINT_FILE" ] && [ -f "$PR_GATE" ]; then
+  GATE_RESULT=$(node -e "
+    const { checkWorkflowGate } = require('$PR_GATE');
+    const result = checkWorkflowGate('$CHECKPOINT_FILE');
+    if (!result.allowed) {
+      process.stderr.write(result.message + '\n');
+      process.exit(2);
+    }
+    if (result.warning) process.stderr.write('[ORBIT] ' + result.warning + '\n');
+  " 2>&1)
+  GATE_EXIT=$?
+  if [ $GATE_EXIT -ne 0 ]; then
+    echo "$GATE_RESULT" >&2
+    exit 2
+  fi
+  [ -n "$GATE_RESULT" ] && echo "$GATE_RESULT" >&2
+fi
+
 if clarification_gate_enabled && [ -f "$CLARIFICATION_HELPER" ]; then
   PENDING_COUNT=$(node "$CLARIFICATION_HELPER" --state-file "$STATE_FILE" --pending-count)
   if [ "${PENDING_COUNT:-0}" -gt 0 ] && ! clarification_bypass_allowed; then
