@@ -8,9 +8,9 @@ Orbit gives AI coding agents a durable operating system for shipping real produc
 - **Active Milestone**: v2.9.0 — Idea to Market (self-orchestrated by Orbit)
 - **Active Phase**: Wave 0 → Wave 1 → Wave 1.5 → Wave 2 → Wave 3 → Wave 0.5 → Wave 4
 - **Current Focus**: Wave 4
-- **Current Version**: v2.10.0
-- **Current Branch**: develop
-- **Active PR**: develop → main (release cut v2.10.0) — PR #243
+- **Current Version**: v2.10.1
+- **Current Branch**: fix/disable-codeql-until-ghas
+- **Active PR**: fix/disable-codeql-until-ghas → main (CI hotfix) — PR #244
 - **Directive**: This release is executed by Orbit using its own slash commands. TDD for every agent file. /orbit:review before every PR.
 - **Plan**: `docs/plans/v2.9.0-wave-4-ship-positioning.md`
 

@@ -4,6 +4,12 @@ All notable changes to the Orbit framework will be documented in this file. The 
 
 ## [Unreleased]
 
+## [2.10.1] - 2026-04-11
+
+### Fixed
+
+- **CodeQL workflow**: Disabled `push` and `pull_request` triggers — CodeQL SARIF upload requires GitHub Advanced Security (GHAS) which is not enabled on this repository. Weekly schedule retained. Re-enable triggers once GHAS is active. (#244)
+
 ## [2.10.0] - 2026-04-11
 
 ### Added
